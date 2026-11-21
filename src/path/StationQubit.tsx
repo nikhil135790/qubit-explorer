@@ -53,10 +53,10 @@ function Package() {
       ))}
       {/* SMA connectors through the walls */}
       {[1, -1].map((s) => (
-        <group key={s} position={[s * 185, 0.5, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <mesh><cylinderGeometry args={[6, 6, 24, 32]} /><meshStandardMaterial {...GOLD} /></mesh>
-          <mesh position={[0, s * 16, 0]}><cylinderGeometry args={[4.5, 4.5, 10, 6]} /><meshStandardMaterial {...GOLD} /></mesh>
-          <mesh position={[0, -s * 14, 0]}><cylinderGeometry args={[0.6, 0.6, 6, 12]} /><meshStandardMaterial {...GOLD} /></mesh>
+        <group key={s} position={[s * 185, 0.6, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <mesh><cylinderGeometry args={[10, 10, 24, 40, 1, true]} /><meshStandardMaterial {...GOLD} transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+          <mesh position={[0, s * 17, 0]}><cylinderGeometry args={[12, 12, 10, 6, 1, true]} /><meshStandardMaterial {...GOLD} transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+          <mesh position={[0, -s * 4, 0]}><cylinderGeometry args={[0.6, 0.6, 30, 12]} /><meshStandardMaterial {...GOLD} /></mesh>
         </group>
       ))}
     </group>
@@ -67,6 +67,7 @@ function Package() {
 const PATH_PTS: [number, number, number][] = [
   [-40, 0.3, 0], [0, 0.3, 0], [40, 0.3, 0], [44, 2.6, 0], [47.5, 4.1, 0], [51, 2.6, 0], [55, 0.6, 0], [100, 0.6, 0], [160, 0.6, 0], [178, 0.6, 0], [205, 0.6, 0],
 ]
+const DIVE = new THREE.Vector3(0.25, 0.8, 0.55).normalize() // one line of sight from the pads down into the junction
 const RES_ARC = 40 + MAIN_X // the followed qubit's resonator couples to the feedline here
 const PULSE_START = 0.42
 
@@ -84,26 +85,35 @@ export function StationQubit() {
     if (v < 0.55) return RES_ARC + ((v - 0.3) / 0.25) * 20
     return RES_ARC + 20 + ((v - 0.55) / 0.45) * (len - RES_ARC - 20)
   }
+  // where the board trace meets the connector: the field settles onto the connector axis and fits inside it
+  const inConn = useMemo(() => {
+    const pts = curve.getSpacedPoints(1500)
+    const at = (x: number) => (pts.findIndex((p) => p.x >= x) / 1500) * len
+    const a0 = at(160), a1 = at(180)
+    return (a: number) => Math.max(0, Math.min(1, (a - a0) / (a1 - a0)))
+  }, [curve, len])
+  const rad = (a: number) => { const r = vis.current * 1.1 * (a > RES_ARC ? READOUT_AMP : 1); const k = inConn(a); return r * (1 - k) + Math.min(r, 5) * k }
   const spec = useMemo<TrailSpec>(() => ({
     center: () => arcAt(usePath.getState().u),
     width: 5,
     pitch: 4,
-    radius: (a) => vis.current * 1.1 * (a > RES_ARC ? READOUT_AMP : 1),
+    radius: rad,
+    lift: (a) => rad(a) * 1.05 * (1 - inConn(a)),
     twist: (a) => (a > RES_ARC ? READOUT_PHASE[usePath.getState().qubit] : 0),
-  }), [len])
+  }), [len, inConn])
   const ghost = useMemo<TrailSpec>(() => ({
     ...spec,
-    radius: (a) => (a > RES_ARC + 2 ? vis.current * 1.1 * READOUT_AMP : 0),
+    radius: (a) => (a > RES_ARC + 2 ? rad(a) : 0),
     twist: (a) => (a > RES_ARC ? READOUT_PHASE[usePath.getState().qubit === 1 ? 0 : 1] : 0),
   }), [spec])
 
   // camera: open on the qubit's pads, dive 1000x into the junction, back out to the whole chip,
   // then ride behind the pulse and pull back as it leaves the chip. Zooms blend in log space.
-  const look = useRef(new THREE.Vector3(MAIN_X, 0, QZ))
+  const look = useRef(new THREE.Vector3(MAIN_X, J.ySi, QZ))
   const tmp = useMemo(() => ({ p: new THREE.Vector3(), a: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot, b: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot }), [])
   const kJ = useMemo<Shot>(() => {
-    const lk = new THREE.Vector3(MAIN_X + 0.002, J.ySi, QZ + 0.001)
-    return { look: lk, pos: lk.clone().add(new THREE.Vector3(0.45, 0.7, 0.55).normalize().multiplyScalar(0.016)) }
+    const lk = new THREE.Vector3(MAIN_X, J.ySi, QZ)
+    return { look: lk, pos: lk.clone().addScaledVector(DIVE, 0.016) }
   }, [])
   const kChip = useMemo<Shot>(() => ({ pos: new THREE.Vector3(30, 78, 82), look: new THREE.Vector3(0, 0, -9) }), [])
   useFrame((_, dt) => {
@@ -113,7 +123,7 @@ export function StationQubit() {
     const s = 1 + Math.max(0, a - 84) / 22 // start widening once the pulse reaches the chip edge
     const chase: Shot = { pos: tmp.p.clone().add(new THREE.Vector3(-13, 9, 16).multiplyScalar(s)), look: tmp.p.clone() }
     const p0 = seg(u, 0, 0.06)
-    const kPads: Shot = { pos: new THREE.Vector3(MAIN_X + 3.2 - 0.6 * p0, 11.5 - 1.5 * p0, QZ + 8.5 - 1.2 * p0), look: new THREE.Vector3(MAIN_X, 0, QZ) }
+    const kPads: Shot = { look: kJ.look.clone(), pos: kJ.look.clone().addScaledVector(DIVE, 14.5 - 2 * p0) }
     blendShots(kPads, kJ, seg(u, 0.06, 0.14), tmp.a)
     blendShots(tmp.a, kChip, seg(u, 0.15, 0.28), tmp.b)
     const target = blendShots(tmp.b, chase, seg(u, 0.34, 0.46))
@@ -129,22 +139,19 @@ export function StationQubit() {
       <PulseTrail curve={curve} spec={ghost} color="#86b5e0" width={1.6} />
       <PulseTrail curve={curve} spec={spec} />
       <JunctionDetail at={[MAIN_X, 0, QZ]} showPairs />
-      {beat === 1 ? (
-        <>
-          <Label pos={[MAIN_X, J.ySi + 0.0004, QZ + 0.012]}>Bottom aluminum wire (30 nm thick)</Label>
-          <Label pos={[MAIN_X + 0.012, J.ySi + 0.0007, QZ]}>Top aluminum wire (60 nm thick)</Label>
-          <Label pos={[MAIN_X + 0.0012, J.ySi + 0.0004, QZ + 0.0012]}>Oxide barrier, about 2 nm</Label>
-        </>
-      ) : (
-        <>
-          <Label pos={[MAIN_X + 0.35, 0.25, QZ]}>Josephson junction</Label>
-          <Label pos={[MAIN_X + 1.6, 0.25, QZ + 1.6]}>Capacitor pad</Label>
-          <Label pos={[MAIN_X + 1.6, 0.25, QZ - 1.6]}>Capacitor pad</Label>
-        </>
-      )}
-      <Label pos={[MAIN_X - 5, 0.4, -6]}>Readout resonator</Label>
-      <Label pos={[47, 5, 3]}>Wire bonds</Label>
-      <Label pos={[185, 9, 0]}>SMA connector</Label>
+      {beat === 0 && <>
+        <Label open pos={[MAIN_X + 0.4, 0.25, QZ]}>Josephson junction</Label>
+        <Label open pos={[MAIN_X + 1.6, 0.25, QZ + 1.6]}>Capacitor pad</Label>
+        <Label open pos={[MAIN_X + 1.6, 0.25, QZ - 1.6]}>Capacitor pad</Label>
+      </>}
+      {beat === 1 && <>
+        <Label open pos={[MAIN_X, J.ySi + 0.0004, QZ + 0.006]}>Aluminum wire (30 nm thick)</Label>
+        <Label open pos={[MAIN_X + 0.006, J.ySi + 0.0007, QZ]}>Aluminum wire (60 nm thick)</Label>
+        <Label open pos={[MAIN_X - 0.0035, J.ySi + 0.0005, QZ + 0.0015]}>Oxide layer, about 2 nm</Label>
+      </>}
+      {beat >= 2 && beat <= 4 && <Label open pos={[MAIN_X - 5, 0.4, -6]}>Readout resonator</Label>}
+      {beat === 5 && <Label open pos={[47, 5, 3]}>Wire bonds</Label>}
+      {beat === 6 && <Label open pos={[190, 14, 0]}>Connector</Label>}
     </group>
   )
 }

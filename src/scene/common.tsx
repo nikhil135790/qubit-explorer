@@ -76,8 +76,9 @@ export function Flow({ points, color, count = 24, speed = 0.12, size = 0.08, siz
 }
 
 /** A label pin: a small dot that reveals its text on hover or tap (or always, when labels are switched on). */
-export function Label({ pos, children, color }: { pos: [number, number, number]; children: React.ReactNode; small?: boolean; color?: string }) {
-  const [open, setOpen] = useState(false)
+export function Label({ pos, children, color, open: always }: { pos: [number, number, number]; children: React.ReactNode; small?: boolean; color?: string; open?: boolean }) {
+  const [hover, setOpen] = useState(false)
+  const open = always || hover
   return (
     <Html position={pos} center zIndexRange={[10, 0]}>
       <div className={'pin' + (open ? ' open' : '')} onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)} onClick={() => setOpen((o) => !o)}>

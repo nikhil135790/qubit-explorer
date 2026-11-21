@@ -81,9 +81,10 @@ function AmpPackage() {
         <mesh key={i} position={[x, -4, z]}><boxGeometry args={[w, 22, d]} /><meshStandardMaterial color="#9c5f35" metalness={1} roughness={0.4} /></mesh>
       ))}
       {([[-92, 4, Math.PI / 2], [92, 4, -Math.PI / 2]] as const).map(([x, z, r]) => (
-        <group key={x} position={[x, 0.5, z]} rotation={[0, 0, r]}>
-          <mesh><cylinderGeometry args={[6, 6, 22, 32]} /><meshStandardMaterial {...GOLD} /></mesh>
-          <mesh position={[0, 14, 0]}><cylinderGeometry args={[4.5, 4.5, 9, 6]} /><meshStandardMaterial {...GOLD} /></mesh>
+        <group key={x} position={[x, 0.6, z]} rotation={[0, 0, r]}>
+          <mesh><cylinderGeometry args={[10, 10, 22, 40, 1, true]} /><meshStandardMaterial {...GOLD} transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+          <mesh position={[0, 15, 0]}><cylinderGeometry args={[12, 12, 9, 6, 1, true]} /><meshStandardMaterial {...GOLD} transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+          <mesh><cylinderGeometry args={[0.6, 0.6, 30, 12]} /><meshStandardMaterial {...GOLD} /></mesh>
         </group>
       ))}
       <group position={[0, 0.5, 92]} rotation={[Math.PI / 2, 0, 0]}>
@@ -135,7 +136,9 @@ const CABLE: [number, number, number][] = [[207, 0.6, 0], [260, 0.6, 0], [330, 2
 function Cable({ curve }: { curve: THREE.Curve<THREE.Vector3> }) {
   return (
     <group>
-      <mesh><tubeGeometry args={[curve, 160, 9, 20, false]} /><meshStandardMaterial color="#b8bcc2" metalness={1} roughness={0.32} /></mesh>
+      <mesh><tubeGeometry args={[curve, 160, 9, 24, false]} /><meshStandardMaterial color="#b8bcc2" metalness={0.8} roughness={0.3} transparent opacity={0.28} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+      {/* centre conductor */}
+      <mesh><tubeGeometry args={[curve, 160, 1.2, 8, false]} /><meshStandardMaterial color="#d9c08a" metalness={1} roughness={0.3} /></mesh>
       {/* connector nuts at both ends */}
       {[0, 1].map((t) => { const p = curve.getPointAt(t); return <mesh key={t} position={p} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[12, 12, 10, 6]} /><meshStandardMaterial color="#c39a4c" metalness={1} roughness={0.34} /></mesh> })}
     </group>
@@ -147,6 +150,7 @@ const stationU = () => { const st = usePath.getState(); return st.station === 1 
 const here = () => usePath.getState().station === 1
 
 export function StationAmp() {
+  const beat = usePath((st) => (st.station === 1 ? st.beat : -1))
   const { camera } = useThree()
   const fwd = useMemo(() => v3(FORWARD), [])
   const det = useMemo(() => v3(DETOUR), [])
@@ -154,7 +158,7 @@ export function StationAmp() {
   const ndr = useMemo(() => v3(NOISE_DRAIN), [])
   const L = useMemo(() => ({
     fwd: fwd.getLength(), det: det.getLength(), nin: nin.getLength(), ndr: ndr.getLength(),
-    ringIn: arcAtX(fwd, -1.6), resB: arcAtX(fwd, 4), ringNoise: arcAtX(nin, 0),
+    ringIn: arcAtX(fwd, -1.6), resB: arcAtX(fwd, 4), ringNoise: arcAtX(nin, 0), connIn: arcAtX(fwd, -80), connOut: arcAtX(fwd, 80),
   }), [fwd, det, nin, ndr])
   const vis = useRef(1)
 
@@ -171,10 +175,16 @@ export function StationAmp() {
 
   const twist = () => READOUT_PHASE[usePath.getState().qubit]
   const specs = useMemo(() => {
+    const inConn = (a: number) => {
+      const k1 = Math.max(0, Math.min(1, (L.connIn - a) / 12)), k2 = Math.max(0, Math.min(1, (a - L.connOut) / 12))
+      return Math.max(k1, k2)
+    }
+    const fwdR = (a: number) => vis.current * 0.9 * READOUT_AMP * (a < L.ringIn ? 1 : a < L.resB ? 1 + 2.5 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 3.5)
     const fwdSpec: TrailSpec = {
+      lift: (a) => fwdR(a) * 1.05 * (1 - inConn(a)),
       center: () => fwdArc(ampU(stationU())), width: 4, pitch: 3.2,
       // 20 dB of power gain is 10x in amplitude; drawn as ~3.5x so it stays on screen
-      radius: (a) => vis.current * 0.9 * READOUT_AMP * (a < L.ringIn ? 1 : a < L.resB ? 1 + 2.5 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 3.5),
+      radius: (a) => { const k = inConn(a), r = fwdR(a); return r * (1 - k) + Math.min(r, 6) * k },
       twist,
     }
     const detSpec: TrailSpec = { center: () => detArc(ampU(stationU())), width: 3, pitch: 3.2, radius: () => vis.current * 0.9, twist }
@@ -195,8 +205,8 @@ export function StationAmp() {
   const cableLen = useMemo(() => cable.getLength(), [cable])
   const cableSpec = useMemo<TrailSpec>(() => ({
     center: () => (here() && stationU() < 0.1 ? (stationU() / 0.1) * cableLen : -999),
-    width: 40, pitch: 34, lift: () => 0, // wraps around the cable
-    radius: () => Math.max(16, vis.current * 1.1),
+    width: 40, pitch: 34, lift: () => 0, // the field rides inside the cable, centred on its axis
+    radius: () => 7,
     twist: () => READOUT_PHASE[usePath.getState().qubit],
   }), [cableLen])
 
@@ -237,7 +247,7 @@ export function StationAmp() {
     <group>
       <Cable curve={cable} />
       <PulseTrail curve={cable} spec={cableSpec} />
-      <Label pos={[480, 50, 2]}>Coax cable (about 2 mm thick)</Label>
+      {beat === 0 && <Label open pos={[480, 50, 2]}>Coax cable</Label>}
       <group position={[X_AMP, 0, 0]}>
       <AmpChip />
       <AmpPackage />
@@ -246,12 +256,17 @@ export function StationAmp() {
       <PulseTrail curve={det} spec={specs.detSpec} color="#ffe2a8" width={2} />
       <PulseTrail curve={nin} spec={specs.ninSpec} color="#ff5a64" width={2.2} />
       <PulseTrail curve={ndr} spec={specs.ndrSpec} color="#ff5a64" width={2.2} />
-      <Label pos={[-12, 0.5, 10]}>Mode a (input, faces the qubit)</Label>
-      <Label pos={[12, 0.5, 10]}>Mode b (output)</Label>
-      <Label pos={[6, 0.5, -9]}>Mode c (heavily damped)</Label>
-      <Label pos={[2.2, 0.6, 2]}>Josephson ring: 4 junctions</Label>
-      <Label pos={[3.5, 0.5, -18.2]}>On-chip resistor</Label>
-      <Label pos={[2, 1, 30]}>Pump tones</Label>
+      {beat === 1 && <Label open pos={[2, 1, 30]}>Pump signal (power for the amplifier)</Label>}
+      {beat >= 2 && beat <= 4 && <>
+        <Label open pos={[-12, 0.5, 10]}>Mode a (faces the qubit)</Label>
+        <Label open pos={[12, 0.5, 10]}>Mode b (output)</Label>
+        <Label open pos={[6, 0.5, -9]}>Mode c</Label>
+        <Label open pos={[2.4, 0.6, 2]}>Josephson ring</Label>
+      </>}
+      {beat >= 5 && beat <= 6 && <>
+        <Label open pos={[6, 0.5, -9]}>Mode c</Label>
+        <Label open pos={[3.5, 0.5, -18.2]}>On-chip resistor</Label>
+      </>}
       </group>
     </group>
   )
