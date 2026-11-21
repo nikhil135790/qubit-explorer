@@ -99,7 +99,7 @@ function Rig() {
 }
 
 // light levels tuned per scene: the fridge is metres across, the chips are millimetres of bright film
-const LIGHT = { fridge: [420, 1.4, 0.9], mxc: [260, 1.2, 0.8], amp: [10, 0.35, 0.16], chip: [10, 0.35, 0.16], transmon: [12, 0.35, 0.18], junction: [30, 0.6, 0.3] } as const
+const LIGHT = { fridge: [420, 1.4, 0.9], mxc: [260, 1.2, 0.8], amp: [10, 0.35, 0.16], chip: [10, 0.35, 0.16], transmon: [4, 0.25, 0.08], junction: [30, 0.6, 0.3] } as const
 function Lights() {
   const level = useStore((s) => s.level)
   const [spot, rim] = LIGHT[level]

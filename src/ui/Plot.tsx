@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Tex } from './Tex'
 
 export type Series = { x: number[]; y: number[]; color: string; label: string; dash?: boolean }
 
@@ -55,7 +56,7 @@ export function Plot({ series, xLabel, yLabel, yMin, yMax, height = 200, marks =
   })
   return (
     <div className="plot">
-      <div className="legend">{series.map((s) => <span key={s.label}><i style={{ background: s.color }} />{s.label}</span>)}</div>
+      <div className="legend">{series.map((s) => <span key={s.label}><i style={{ background: s.color }} /><Tex>{s.label}</Tex></span>)}</div>
       <canvas ref={ref} style={{ width: '100%', height }} />
     </div>
   )
