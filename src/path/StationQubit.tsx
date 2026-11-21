@@ -7,6 +7,9 @@ import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { usePath, seg } from './state'
+import { JunctionDetail, J } from './Junction'
+import { blendShots, follow } from './rig'
+import type { Shot } from './rig'
 
 // Scene units: 1 = 0.1 mm. The chip (9 x 6 mm) sits in a pocket of a gold-plated circuit board.
 export const GOLD = { color: '#c39a4c', metalness: 1, roughness: 0.34 }
@@ -69,12 +72,13 @@ const PULSE_START = 0.42
 
 export function StationQubit() {
   const { camera } = useThree()
+  const beat = usePath((st) => (st.station === 0 ? st.beat : -1))
   const curve = useMemo(() => new THREE.CatmullRomCurve3(PATH_PTS.map((p) => new THREE.Vector3(...p)), false, 'centripetal'), [])
   const len = useMemo(() => curve.getLength(), [curve])
   const vis = useRef(1) // drawing scale: keeps the pulse readable as the camera pulls back
   // slow on the chip so you can watch the resonator interaction, faster once it leaves
   const arcAt = (u: number) => {
-    if (u < PULSE_START) return -999
+    if (usePath.getState().station !== 0 || u < PULSE_START) return -999
     const v = (u - PULSE_START) / (1 - PULSE_START)
     if (v < 0.3) return (v / 0.3) * RES_ARC
     if (v < 0.55) return RES_ARC + ((v - 0.3) / 0.25) * 20
@@ -93,26 +97,29 @@ export function StationQubit() {
     twist: (a) => (a > RES_ARC ? READOUT_PHASE[usePath.getState().qubit === 1 ? 0 : 1] : 0),
   }), [spec])
 
-  // camera: whole chip, dive to the transmon, then ride behind the pulse and pull back as it leaves the chip
-  const look = useRef(new THREE.Vector3(0, 0, -6))
-  const tmp = useMemo(() => ({ p: new THREE.Vector3(), pos: new THREE.Vector3(), lk: new THREE.Vector3() }), [])
+  // camera: open on the qubit's pads, dive 1000x into the junction, back out to the whole chip,
+  // then ride behind the pulse and pull back as it leaves the chip. Zooms blend in log space.
+  const look = useRef(new THREE.Vector3(MAIN_X, 0, QZ))
+  const tmp = useMemo(() => ({ p: new THREE.Vector3(), a: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot, b: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot }), [])
+  const kJ = useMemo<Shot>(() => {
+    const lk = new THREE.Vector3(MAIN_X + 0.002, J.ySi, QZ + 0.001)
+    return { look: lk, pos: lk.clone().add(new THREE.Vector3(0.45, 0.7, 0.55).normalize().multiplyScalar(0.016)) }
+  }, [])
+  const kChip = useMemo<Shot>(() => ({ pos: new THREE.Vector3(30, 78, 82), look: new THREE.Vector3(0, 0, -9) }), [])
   useFrame((_, dt) => {
-    const { u, paused, orbiting } = usePath.getState()
+    const { u, paused, orbiting, station } = usePath.getState()
     const a = Math.max(0, arcAt(u))
     curve.getPointAt(Math.min(1, a / len), tmp.p)
     const s = 1 + Math.max(0, a - 84) / 22 // start widening once the pulse reaches the chip edge
-    const chasePos = tmp.p.clone().add(new THREE.Vector3(-13, 9, 16).multiplyScalar(s))
-    // open on the transmon itself (pads and junction), pull back to the whole chip, then pick up the pulse
-    const k0 = { pos: new THREE.Vector3(MAIN_X + 3.2 - 0.6 * seg(u, 0, 0.1), 11.5 - 1.5 * seg(u, 0, 0.1), QZ + 8.5 - 1.2 * seg(u, 0, 0.1)), look: new THREE.Vector3(MAIN_X, 0, QZ) }
-    const k1 = { pos: new THREE.Vector3(30, 78, 82), look: new THREE.Vector3(0, 0, -9) }
-    tmp.pos.copy(k0.pos).lerp(k1.pos, seg(u, 0.13, 0.28)).lerp(chasePos, seg(u, 0.34, 0.46))
-    tmp.lk.copy(k0.look).lerp(k1.look, seg(u, 0.13, 0.28)).lerp(tmp.p, seg(u, 0.34, 0.46))
+    const chase: Shot = { pos: tmp.p.clone().add(new THREE.Vector3(-13, 9, 16).multiplyScalar(s)), look: tmp.p.clone() }
+    const p0 = seg(u, 0, 0.06)
+    const kPads: Shot = { pos: new THREE.Vector3(MAIN_X + 3.2 - 0.6 * p0, 11.5 - 1.5 * p0, QZ + 8.5 - 1.2 * p0), look: new THREE.Vector3(MAIN_X, 0, QZ) }
+    blendShots(kPads, kJ, seg(u, 0.06, 0.14), tmp.a)
+    blendShots(tmp.a, kChip, seg(u, 0.15, 0.28), tmp.b)
+    const target = blendShots(tmp.b, chase, seg(u, 0.34, 0.46))
     vis.current = Math.max(1, camera.position.distanceTo(look.current) / 22)
-    if (paused || orbiting) return
-    const k = 1 - Math.exp(-dt * 3)
-    camera.position.lerp(tmp.pos, k)
-    look.current.lerp(tmp.lk, k)
-    camera.lookAt(look.current)
+    if (station !== 0 || paused || orbiting) return
+    follow(camera, look.current, target, 1 - Math.exp(-dt * 3))
   })
 
   return (
@@ -121,9 +128,20 @@ export function StationQubit() {
       <Package />
       <PulseTrail curve={curve} spec={ghost} color="#86b5e0" width={1.6} />
       <PulseTrail curve={curve} spec={spec} />
-      <Label pos={[MAIN_X + 0.35, 0.25, QZ]}>Josephson junction</Label>
-      <Label pos={[MAIN_X + 1.6, 0.25, QZ + 1.6]}>Capacitor pad</Label>
-      <Label pos={[MAIN_X + 1.6, 0.25, QZ - 1.6]}>Capacitor pad</Label>
+      <JunctionDetail at={[MAIN_X, 0, QZ]} showPairs />
+      {beat === 1 ? (
+        <>
+          <Label pos={[MAIN_X, J.ySi + 0.0004, QZ + 0.012]}>Bottom aluminum wire (30 nm thick)</Label>
+          <Label pos={[MAIN_X + 0.012, J.ySi + 0.0007, QZ]}>Top aluminum wire (60 nm thick)</Label>
+          <Label pos={[MAIN_X + 0.0012, J.ySi + 0.0004, QZ + 0.0012]}>Oxide barrier, about 2 nm</Label>
+        </>
+      ) : (
+        <>
+          <Label pos={[MAIN_X + 0.35, 0.25, QZ]}>Josephson junction</Label>
+          <Label pos={[MAIN_X + 1.6, 0.25, QZ + 1.6]}>Capacitor pad</Label>
+          <Label pos={[MAIN_X + 1.6, 0.25, QZ - 1.6]}>Capacitor pad</Label>
+        </>
+      )}
       <Label pos={[MAIN_X - 5, 0.4, -6]}>Readout resonator</Label>
       <Label pos={[47, 5, 3]}>Wire bonds</Label>
       <Label pos={[185, 9, 0]}>SMA connector</Label>

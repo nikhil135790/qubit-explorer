@@ -9,7 +9,9 @@ import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { Bond, GOLD, PCB } from './StationQubit'
-import { usePath, seg } from './state'
+import { usePath, seg, ampU } from './state'
+import { blendShots, follow } from './rig'
+import type { Shot } from './rig'
 
 // Scene units: 1 = 0.1 mm. A 5 mm amplifier chip: three resonators (a, b, c) meeting at a
 // Josephson ring modulator, a pump line, and an on-chip resistor that drains mode c.
@@ -125,6 +127,25 @@ const DETOUR: [number, number, number][] = [[-1.6, 0.35, 2], [-0.7, 0.35, 0.4], 
 const NOISE_IN: [number, number, number][] = [[140, 0.6, 4.8], [92, 0.6, 4.8], [30, 0.6, 4.8], [27.5, 2.4, 4.8], [25.5, 3.2, 4.8], [23.6, 0.4, 4.8], [12, 0.4, 4.8], [4, 0.4, 4.5], [1.6, 0.4, 2.4], [0, 0.4, 2.2], [-1.6, 0.4, 2.4], [-4, 0.4, 4.4], [-10, 0.4, 4.6]]
 const NOISE_DRAIN: [number, number, number][] = [[0, 0.45, 1.6], [0, 0.45, -6], [0, 0.45, -13], [0, 0.45, -16], [0, 0.45, -19.5]]
 
+export const X_AMP = 900 // 9 cm from the qubit package, along the cold plate
+
+// the coax from the qubit box's output connector to the amplifier box's input connector (world coordinates)
+const CABLE: [number, number, number][] = [[207, 0.6, 0], [260, 0.6, 0], [330, 22, 0], [480, 34, 2], [630, 22, 4], [720, 0.6, 4], [X_AMP - 108, 0.6, 4]]
+
+function Cable({ curve }: { curve: THREE.Curve<THREE.Vector3> }) {
+  return (
+    <group>
+      <mesh><tubeGeometry args={[curve, 160, 9, 20, false]} /><meshStandardMaterial color="#b8bcc2" metalness={1} roughness={0.32} /></mesh>
+      {/* connector nuts at both ends */}
+      {[0, 1].map((t) => { const p = curve.getPointAt(t); return <mesh key={t} position={p} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[12, 12, 10, 6]} /><meshStandardMaterial color="#c39a4c" metalness={1} roughness={0.34} /></mesh> })}
+    </group>
+  )
+}
+
+/** u for this station's own timeline: 0 before we get here, 1 once we've moved on. */
+const stationU = () => { const st = usePath.getState(); return st.station === 1 ? st.u : st.station > 1 ? 1 : 0 }
+const here = () => usePath.getState().station === 1
+
 export function StationAmp() {
   const { camera } = useThree()
   const fwd = useMemo(() => v3(FORWARD), [])
@@ -139,62 +160,85 @@ export function StationAmp() {
 
   // forward pulse: arrive at the ring, cross it while the detour copy runs, then leave through b
   const fwdArc = (u: number) => {
-    if (u < 0.08) return -999
+    if (!here() || u < 0.08) return -999
     if (u < 0.3) return ((u - 0.08) / 0.22) * L.ringIn
     if (u < 0.48) return L.ringIn + ((u - 0.3) / 0.18) * (L.resB - L.ringIn)
     return L.resB + ((u - 0.48) / 0.12) * (L.fwd - L.resB)
   }
-  const detArc = (u: number) => (u < 0.3 || u > 0.5 ? -999 : ((u - 0.3) / 0.18) * L.det)
-  const ninArc = (u: number) => (u < 0.6 ? -999 : ((u - 0.6) / 0.22) * L.nin)
+  const detArc = (u: number) => (!here() || u < 0.3 || u > 0.5 ? -999 : ((u - 0.3) / 0.18) * L.det)
+  const ninArc = (u: number) => (!here() || u < 0.6 ? -999 : ((u - 0.6) / 0.22) * L.nin)
   const ndrArc = (u: number) => { const a = ninArc(u); return a < L.ringNoise ? -999 : a - L.ringNoise }
 
   const twist = () => READOUT_PHASE[usePath.getState().qubit]
   const specs = useMemo(() => {
     const fwdSpec: TrailSpec = {
-      center: () => fwdArc(usePath.getState().u), width: 4, pitch: 3.2,
+      center: () => fwdArc(ampU(stationU())), width: 4, pitch: 3.2,
       // 20 dB of power gain is 10x in amplitude; drawn as ~3.5x so it stays on screen
       radius: (a) => vis.current * 0.9 * READOUT_AMP * (a < L.ringIn ? 1 : a < L.resB ? 1 + 2.5 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 3.5),
       twist,
     }
-    const detSpec: TrailSpec = { center: () => detArc(usePath.getState().u), width: 3, pitch: 3.2, radius: () => vis.current * 0.9, twist }
+    const detSpec: TrailSpec = { center: () => detArc(ampU(stationU())), width: 3, pitch: 3.2, radius: () => vis.current * 0.9, twist }
     const ninSpec: TrailSpec = {
-      center: () => ninArc(usePath.getState().u), width: 5, pitch: 2.6,
+      center: () => ninArc(ampU(stationU())), width: 5, pitch: 2.6,
       radius: (a) => vis.current * 1.1 * (a < L.ringNoise ? 1 : Math.exp(-(a - L.ringNoise) / 1.2)), // cancels past the ring
       twist: () => 0, fuzz: () => 0.9,
     }
     const ndrSpec: TrailSpec = {
-      center: () => ndrArc(usePath.getState().u), width: 4, pitch: 2.6,
+      center: () => ndrArc(ampU(stationU())), width: 4, pitch: 2.6,
       radius: (a) => vis.current * 1.1 * Math.exp(-Math.max(0, a - 14) / 2.5), // absorbed in the resistor
       twist: () => 0, fuzz: () => 0.9,
     }
     return { fwdSpec, detSpec, ninSpec, ndrSpec }
   }, [L])
 
-  const look = useRef(new THREE.Vector3(0, 0, 0))
-  const tmp = useMemo(() => ({ p: new THREE.Vector3(), pos: new THREE.Vector3(), lk: new THREE.Vector3() }), [])
+  const cable = useMemo(() => v3(CABLE), [])
+  const cableLen = useMemo(() => cable.getLength(), [cable])
+  const cableSpec = useMemo<TrailSpec>(() => ({
+    center: () => (here() && stationU() < 0.1 ? (stationU() / 0.1) * cableLen : -999),
+    width: 40, pitch: 34, lift: () => 0, // wraps around the cable
+    radius: () => Math.max(16, vis.current * 1.1),
+    twist: () => READOUT_PHASE[usePath.getState().qubit],
+  }), [cableLen])
+
+  const look = useRef(new THREE.Vector3(X_AMP, 0, 0))
+  const tmp = useMemo(() => ({ p: new THREE.Vector3(), c: new THREE.Vector3(), s1: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot }), [])
+  const off = (x: number, y: number, z: number) => new THREE.Vector3(x + X_AMP, y, z)
   useFrame((_, dt) => {
-    const { u, paused, orbiting } = usePath.getState()
+    const su = stationU(), u = ampU(su)
     const a = Math.max(0, Math.min(L.fwd, fwdArc(u)))
     fwd.getPointAt(a / L.fwd, tmp.p)
+    tmp.p.x += X_AMP
     const chase = tmp.p.clone().add(new THREE.Vector3(-9, 11, 15).multiplyScalar(1 + 1.5 * seg(u, 0.44, 0.56)))
-    const K = [
-      { pos: new THREE.Vector3(-140, 160, 210), look: new THREE.Vector3(0, 0, 0) },
+    const K: Shot[] = [
+      { pos: off(-140, 160, 210), look: off(0, 0, 0) },
       { pos: chase, look: tmp.p.clone() },
-      { pos: new THREE.Vector3(10, 36, 34), look: new THREE.Vector3(1, 0, -2) },
-      { pos: new THREE.Vector3(175, 70, 110), look: new THREE.Vector3(92, 0, 4) },
+      { pos: off(10, 36, 34), look: off(1, 0, -2) },
+      { pos: off(175, 70, 110), look: off(92, 0, 4) },
     ]
-    tmp.pos.copy(K[0].pos).lerp(K[1].pos, seg(u, 0.06, 0.2)).lerp(K[2].pos, seg(u, 0.5, 0.6)).lerp(K[3].pos, seg(u, 0.86, 0.98))
-    tmp.lk.copy(K[0].look).lerp(K[1].look, seg(u, 0.06, 0.2)).lerp(K[2].look, seg(u, 0.5, 0.6)).lerp(K[3].look, seg(u, 0.86, 0.98))
+    let shot = blendShots(K[0], K[1], seg(u, 0.06, 0.2))
+    shot = blendShots(shot, K[2], seg(u, 0.5, 0.6))
+    shot = blendShots(shot, K[3], seg(u, 0.86, 0.98))
+    // the cable ride: from where station 1 ended, up to a view of both boxes, then down to the amplifier box
+    if (su < 0.1) {
+      const ut = su / 0.1
+      cable.getPointAt(Math.min(1, ut), tmp.c)
+      const start: Shot = { pos: new THREE.Vector3(95, 77, 136), look: new THREE.Vector3(205, 0.6, 0) }
+      const wide: Shot = { pos: new THREE.Vector3(tmp.c.x - 150, 620, 900), look: new THREE.Vector3(tmp.c.x * 0.6 + 480 * 0.4, 0, 30) }
+      blendShots(start, wide, seg(ut, 0, 0.4), tmp.s1)
+      shot = blendShots(tmp.s1, K[0], seg(ut, 0.6, 1))
+    }
     vis.current = Math.max(1, camera.position.distanceTo(look.current) / 24)
-    if (paused || orbiting) return
-    const k = 1 - Math.exp(-dt * 3)
-    camera.position.lerp(tmp.pos, k)
-    look.current.lerp(tmp.lk, k)
-    camera.lookAt(look.current)
+    const { paused, orbiting } = usePath.getState()
+    if (!here() || paused || orbiting) return
+    follow(camera, look.current, shot, 1 - Math.exp(-dt * 3))
   })
 
   return (
     <group>
+      <Cable curve={cable} />
+      <PulseTrail curve={cable} spec={cableSpec} />
+      <Label pos={[480, 50, 2]}>Coax cable (about 2 mm thick)</Label>
+      <group position={[X_AMP, 0, 0]}>
       <AmpChip />
       <AmpPackage />
       <PumpWave />
@@ -208,6 +252,7 @@ export function StationAmp() {
       <Label pos={[2.2, 0.6, 2]}>Josephson ring: 4 junctions</Label>
       <Label pos={[3.5, 0.5, -18.2]}>On-chip resistor</Label>
       <Label pos={[2, 1, 30]}>Pump tones</Label>
+      </group>
     </group>
   )
 }

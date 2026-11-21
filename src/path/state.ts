@@ -10,22 +10,24 @@ export type Beat = { u: number; dur: number; caption: string }
 export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
   {
     id: 'qubit', name: 'The qubit', beats: [
-      { u: 0.1, dur: 4, caption: 'This is a transmon qubit: two tantalum capacitor pads on silicon. The hair-thin bridge between them is the Josephson junction.' },
-      { u: 0.3, dur: 5.5, caption: 'Zooming out: four qubits share this chip. Each one has its own readout resonator (the zigzags), and all four hang off one shared feedline.' },
+      { u: 0.06, dur: 4, caption: 'This is a transmon qubit: two tantalum capacitor pads on silicon. The hair-thin bridge between them is the Josephson junction.' },
+      { u: 0.14, dur: 7, caption: 'This is the Josephson junction, where two aluminum wires cross with a layer of oxide only a couple of nanometers thick between them. Pairs of electrons, called Cooper pairs, tunnel through that layer without any resistance, and that is what turns this circuit into a qubit. (The glowing pairs are a cartoon, since real Cooper pairs are spread out rather than little balls.)' },
+      { u: 0.3, dur: 7, caption: 'Zooming out: four qubits share this chip. Each one has its own readout resonator (the zigzags), and all four hang off one shared feedline.' },
       { u: 0.5, dur: 5.5, caption: 'To measure the qubit, we send a short microwave pulse down the feedline. The spiral is its electric field: the radius is the amplitude, the rotation is the phase.' },
       { u: 0.66, dur: 6, caption: 'As it passes the readout resonator, the pulse picks up a twist of $\\pm 45^\\circ$ that depends on the qubit’s state. The faint blue spiral shows what the other state would have done.' },
-      { u: 0.85, dur: 5, caption: 'Off the chip, over aluminum wire bonds about 25 µm thick, and onto the circuit board.' },
+      { u: 0.85, dur: 5, caption: 'The pulse leaves the chip through thin aluminum wire bonds and continues onto the circuit board that holds it.' },
       { u: 1, dur: 4, caption: 'Into the connector. Next stop: the directional amplifier.' },
     ],
   },
   {
     id: 'amp', name: 'Directional amplifier', beats: [
-      { u: 0.08, dur: 4, caption: 'The directional amplifier: a 5 mm chip in its own copper box. The purple wave is the pump tone that powers it.' },
-      { u: 0.3, dur: 6, caption: 'The pulse enters mode $a$, the side of the amplifier that faces the qubit.' },
-      { u: 0.42, dur: 5, caption: 'At the Josephson ring it splits: one part goes straight to $b$, the other takes a detour through $c$.' },
-      { u: 0.58, dur: 5, caption: 'The two routes arrive in step and add up. The pulse leaves $b$ with about 100 times the power (drawn smaller so it fits).' },
-      { u: 0.7, dur: 5, caption: 'Now noise from the 4 K amplifier arrives at $b$, heading back toward the qubit.' },
-      { u: 0.86, dur: 6, caption: 'Going backward, the two routes arrive out of step and cancel. What’s left drains into $c$’s on-chip resistor.' },
+      { u: 0.1, dur: 7, caption: 'A coax cable carries the pulse a few centimeters across the coldest plate of the fridge to the directional amplifier.' },
+      { u: 0.172, dur: 4, caption: 'The directional amplifier is a 5 mm chip in its own copper box, and the purple wave is the pump tone that powers it.' },
+      { u: 0.37, dur: 6, caption: 'The pulse enters mode $a$, the side of the amplifier that faces the qubit.' },
+      { u: 0.478, dur: 5, caption: 'At the Josephson ring it splits: one part goes straight to $b$, the other takes a detour through $c$.' },
+      { u: 0.622, dur: 5, caption: 'The two routes arrive in step and add up. The pulse leaves $b$ with about 100 times the power (drawn smaller so it fits).' },
+      { u: 0.73, dur: 5, caption: 'Now noise from the 4 K amplifier arrives at $b$, heading back toward the qubit.' },
+      { u: 0.874, dur: 6, caption: 'Going backward, the two routes arrive out of step and cancel. What’s left drains into $c$’s on-chip resistor.' },
       { u: 1, dur: 4, caption: 'Out through the output connector, toward the isolator.' },
     ],
   },
@@ -35,6 +37,10 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
 ]
 
 export const BUILT = 2 // stations finished so far
+
+/** In station 2, u from 0 to 0.1 is the cable ride; the amplifier itself runs from 0.1 to 1. */
+export const AMP_START = 0.1
+export const ampU = (u: number) => Math.max(0, (u - AMP_START) / (1 - AMP_START))
 
 type PathState = {
   station: number

@@ -7,7 +7,7 @@ import type { OrbitControls as OC } from 'three-stdlib'
 import * as THREE from 'three'
 import { usePath, STATIONS, BUILT, beatRunning } from './state'
 import { StationQubit } from './StationQubit'
-import { StationAmp } from './StationAmp'
+import { StationAmp, X_AMP } from './StationAmp'
 import { Tex } from '../ui/Tex'
 import './path.css'
 
@@ -58,6 +58,9 @@ function LookAround() {
   usePath.getState().set({ station: s, beat: b, u, from: u, orbiting: false, paused: false })
 }
 
+// test hook: set progress within the current station and hold there
+;(window as unknown as { __setU2: (u: number) => void }).__setU2 = (u: number) => usePath.getState().set({ u, from: u })
+
 export function Path() {
   const { station, beat, u, paused, qubit, set, next, back, replay, goStation } = usePath()
   const S = STATIONS[station]
@@ -66,14 +69,19 @@ export function Path() {
   const atEnd = station === BUILT - 1 && beat === S.beats.length - 1
   return (
     <div className="path">
-      <Canvas flat dpr={[1, 1.75]} camera={{ position: [13.2, 11.5, -7.6], fov: 34, near: 0.02, far: 3000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
+      <Canvas flat dpr={[1, 1.75]} camera={{ position: [13.2, 11.5, -7.6], fov: 34, near: 0.00001, far: 6000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
         <color attach="background" args={['#141519']} />
         <hemisphereLight args={['#fff4e2', '#141519', 0.42]} />
         <spotLight position={[10, 220, -20]} angle={0.9} penumbra={1} intensity={550} decay={2} color="#ffe8c6" />
         <directionalLight position={[120, 40, -120]} intensity={0.5} color="#9db7ff" />
         <Environment files="/hdri/studio.hdr" environmentIntensity={0.2} environmentRotation={[0, Math.PI * 0.75, 0]} />
-        {station === 0 && <StationQubit />}
-        {station === 1 && <StationAmp />}
+        {/* one continuous world: both boxes sit on the fridge's coldest plate, 9 cm apart */}
+        <mesh position={[(X_AMP - 420 + 250) / 2 - 0, -30, 0]}>
+          <boxGeometry args={[X_AMP + 670, 10, 900]} />
+          <meshStandardMaterial color="#b08a45" metalness={0.9} roughness={0.42} />
+        </mesh>
+        <StationQubit />
+        <StationAmp />
         <Clock />
         <LookAround />
         <EffectComposer multisampling={4}>
@@ -83,7 +91,6 @@ export function Path() {
         </EffectComposer>
       </Canvas>
 
-      <div className="p-fade" key={'f' + station} />
       <div className="p-title">
         <span className="p-num">{station + 1}</span>
         <h1>{S.name}</h1>
@@ -100,9 +107,13 @@ export function Path() {
         </div>
         <div className="p-stations">
           {STATIONS.map((s, i) => (
-            <button key={s.id} className={'p-st' + (i === station ? ' on' : '') + (i >= BUILT ? ' soon' : '')} disabled={i >= BUILT} onClick={() => goStation(i)}>
-              <span className="lbl">{s.name}</span>
-              {i === station && <span className="dots">{s.beats.map((_, k) => <i key={k} className={k < beat ? 'done' : k === beat ? 'cur' : ''} />)}</span>}
+            <button key={s.id} className={'p-st' + (i === station ? ' on' : '') + (i < station ? ' past' : '') + (i >= BUILT ? ' soon' : '')} disabled={i >= BUILT} onClick={() => goStation(i)}>
+              <span className="p-st-line">
+                {i === station
+                  ? s.beats.map((_, k) => <i key={k} className={k < beat ? 'done' : k === beat ? 'cur' : ''} />)
+                  : <i className={i < station ? 'done full' : 'full'} />}
+              </span>
+              <span className="p-st-name">{s.name}</span>
             </button>
           ))}
         </div>

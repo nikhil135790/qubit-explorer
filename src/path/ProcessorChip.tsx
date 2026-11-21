@@ -25,18 +25,18 @@ function resonator(x0: number, e: number): [number, number][] {
 }
 
 /** Two 0.4 x 0.25 mm pads 20 µm apart, joined by a junction drawn a few µm wide (real: ~0.2 µm). */
-function Transmon({ x0 }: { x0: number }) {
-  const yJ = Y_TRACE + 0.006
+function Transmon({ x0, detailed }: { x0: number; detailed?: boolean }) {
   return (
     <group position={[x0, 0, QZ]}>
       <Rect x={0} z={0} w={6} d={7.4} y={Y_GAP} mat={GAP} />
       <Rect x={0} z={1.35} w={4} d={2.5} y={Y_TRACE} mat={TA} h={0.012} />
       <Rect x={0} z={-1.35} w={4} d={2.5} y={Y_TRACE} mat={TA} h={0.012} />
-      {/* junction leads from each pad, overlapping in the middle through a thin oxide */}
-      <mesh position={[-0.05, yJ, 0.03]}><boxGeometry args={[0.03, 0.006, 0.17]} /><meshStandardMaterial color="#dcd6c8" metalness={1} roughness={0.25} /></mesh>
-      <mesh position={[0.05, yJ, -0.03]}><boxGeometry args={[0.03, 0.006, 0.17]} /><meshStandardMaterial color="#dcd6c8" metalness={1} roughness={0.25} /></mesh>
-      <mesh position={[0, yJ + 0.002, 0]}><boxGeometry args={[0.13, 0.006, 0.03]} /><meshStandardMaterial color="#dcd6c8" metalness={1} roughness={0.25} /></mesh>
-      <mesh position={[0, yJ + 0.004, 0]}><boxGeometry args={[0.035, 0.004, 0.035]} /><meshStandardMaterial color="#7fd6ff" emissive="#2a7fa8" emissiveIntensity={0.8} /></mesh>
+      {/* junction leads, ~1 µm wide: hair-thin at chip scale. The followed qubit gets a detailed junction instead. */}
+      {!detailed && <>
+        <mesh position={[0, Y_GAP + 0.0052, 0.05]}><boxGeometry args={[0.01, 0.0003, 0.1]} /><meshStandardMaterial color="#c9ccd1" metalness={0.9} roughness={0.45} /></mesh>
+        <mesh position={[0.03, Y_GAP + 0.0053, -0.05]}><boxGeometry args={[0.01, 0.0006, 0.1]} /><meshStandardMaterial color="#c9ccd1" metalness={0.9} roughness={0.45} /></mesh>
+        <mesh position={[0.015, Y_GAP + 0.0053, 0]}><boxGeometry args={[0.03, 0.0006, 0.004]} /><meshStandardMaterial color="#c9ccd1" metalness={0.9} roughness={0.45} /></mesh>
+      </>}
     </group>
   )
 }
@@ -60,7 +60,7 @@ export function ProcessorChip({ pulseX }: { pulseX: () => number }) {
       {QX.map((x0, i) => (
         <group key={x0}>
           {i === MAIN ? <group ref={glow}><Cpw pts={resonator(x0, ELBOW[i])} wc={0.5} wg={1.1} /></group> : <Cpw pts={resonator(x0, ELBOW[i])} wc={0.5} wg={1.1} />}
-          <Transmon x0={x0} />
+          <Transmon x0={x0} detailed={i === MAIN} />
         </group>
       ))}
     </group>
