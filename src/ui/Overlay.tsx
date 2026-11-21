@@ -55,10 +55,10 @@ function Intro({ onClose }: { onClose: () => void }) {
     <div className="intro-wrap">
       <div className="intro">
         <h1>Down the readout line</h1>
-        <p><Tex>{'A superconducting quantum computer stores information in small electrical circuits cooled to about 10 mK. Each circuit is a qubit: it can be in $|0\\rangle$, $|1\\rangle$, or a superposition of both.'}</Tex></p>
-        <p><Tex>{'Running a calculation means steering those states with microwave pulses and then measuring them. Measuring is the hard part. The signal from one qubit is a few microwave photons, and it has to be amplified about $10^{10}$ times on its way out of the fridge without disturbing the qubit.'}</Tex></p>
-        <p>This app follows that signal. You start at the full refrigerator and zoom down to a single Josephson junction, the part that makes both qubits and quantum amplifiers work. Then you get to run a directional amplifier, the device that lets the signal out while keeping noise from getting back in.</p>
-        <p className="how">Drag to orbit, scroll to zoom, and click a yellow ring to go deeper. The ruler on the left shows the real size of each level.</p>
+        <p><Tex>{'A superconducting quantum computer stores information in little electrical circuits cooled to about 10 mK. Each one is a qubit: it can be $|0\\rangle$, $|1\\rangle$, or some superposition of both.'}</Tex></p>
+        <p><Tex>{'Doing a calculation means nudging those states around with microwave pulses, then measuring them. The measuring part is surprisingly hard. One qubit’s signal is a few microwave photons, and it has to be amplified about $10^{10}$ times on its way out of the fridge... without the amplifier disturbing the qubit it’s trying to read.'}</Tex></p>
+        <p>This app follows that signal. Start at the full refrigerator, zoom all the way down to a single Josephson junction (the part that makes both qubits and quantum amplifiers possible), then take control of a directional amplifier and see what it does to a real measurement.</p>
+        <p className="how">Drag to orbit, scroll to zoom. Hover a dot to see what it is, and click a yellow button to go deeper. The ruler on the left shows how big each thing actually is.</p>
         <div className="keys">
           <button className="primary" onClick={() => { onClose(); goTo('fridge') }}>Start the tour</button>
           <button onClick={onClose}>Explore on my own</button>
