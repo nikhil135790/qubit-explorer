@@ -6,11 +6,11 @@ import { useStore } from '../store'
 import type { LevelId } from '../levels'
 
 export const MAT = {
-  gold: { color: '#d9a94e', metalness: 1, roughness: 0.28 },
-  copper: { color: '#c27a4a', metalness: 1, roughness: 0.35 },
-  steel: { color: '#a7adb7', metalness: 1, roughness: 0.4 },
+  gold: { color: '#e0b25a', metalness: 1, roughness: 0.22 },
+  copper: { color: '#c8794c', metalness: 1, roughness: 0.3 },
+  steel: { color: '#b9bec6', metalness: 1, roughness: 0.32 },
   alum: { color: '#d8dde4', metalness: 1, roughness: 0.22 },
-  film: { color: '#cfd6df', metalness: 0.9, roughness: 0.18 },
+  film: { color: '#a9b2bd', metalness: 0.85, roughness: 0.38 },
   silicon: { color: '#2a3140', metalness: 0.3, roughness: 0.55 },
   sapphire: { color: '#8fb3d9', metalness: 0.1, roughness: 0.1, transparent: true, opacity: 0.55 },
   oxide: { color: '#6fd3ff', metalness: 0.2, roughness: 0.3, transparent: true, opacity: 0.75, emissive: '#1f6f99' },
@@ -47,6 +47,7 @@ export function Flow({ points, color, count = 24, speed = 0.12, size = 0.08, siz
   const ref = useRef<THREE.InstancedMesh>(null)
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const seeds = useMemo(() => Array.from({ length: count }, (_, i) => [(i / count + offset) % 1, Math.random() - 0.5, Math.random() - 0.5]), [count, offset])
+  const glow = useMemo(() => new THREE.Color(color).multiplyScalar(3.2), [color])
   const sizeRef = useRef(sizeAt), alphaRef = useRef(alphaAt)
   sizeRef.current = sizeAt
   alphaRef.current = alphaAt
@@ -69,7 +70,7 @@ export function Flow({ points, color, count = 24, speed = 0.12, size = 0.08, siz
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, count]} frustumCulled={false}>
       <sphereGeometry args={[1, 12, 12]} />
-      <meshBasicMaterial color={color} toneMapped={false} transparent opacity={0.95} />
+      <meshBasicMaterial color={glow} toneMapped={false} transparent opacity={0.95} />
     </instancedMesh>
   )
 }
@@ -101,10 +102,10 @@ export function Hotspot({ pos, to, label }: { pos: [number, number, number]; to:
         onPointerOver={() => { setHover(true); document.body.style.cursor = 'pointer' }}
         onPointerOut={() => { setHover(false); document.body.style.cursor = '' }}>
         <ringGeometry args={[0.7, 1, 40]} />
-        <meshBasicMaterial color={hover ? '#ffffff' : '#9d7bff'} toneMapped={false} side={THREE.DoubleSide} transparent opacity={0.9} />
+        <meshBasicMaterial color={hover ? '#ffffff' : '#f2d32b'} toneMapped={false} side={THREE.DoubleSide} transparent opacity={0.9} />
       </mesh>
       <Html center position={[0, 0, 0]} zIndexRange={[20, 10]}>
-        <button className="hot" onClick={() => goTo(to, pos)}>⤢ {label}</button>
+        <button className="hot" onClick={() => goTo(to, pos)}>{label}</button>
       </Html>
     </group>
   )

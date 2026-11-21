@@ -62,8 +62,8 @@ export function AmpControls() {
       </div>
       {amp.stable && (
         <Plot xLabel="detuning from mode center (MHz)" yLabel="gain (dB)" yMin={-60} yMax={30} yTicks={3}
-          series={[{ x: curve.x, y: curve.f, color: '#ffa94d', label: 'forward (a → b)' }, { x: curve.x, y: curve.r, color: '#ff4d5e', label: 'reverse (b → a)' }]}
-          hLines={[{ y: 0, label: '0 dB', color: '#4a5266' }]} />
+          series={[{ x: curve.x, y: curve.f, color: '#f2d32b', label: 'forward a → b' }, { x: curve.x, y: curve.r, color: '#e35bd0', label: 'reverse b → a' }]}
+          hLines={[{ y: 0, label: '0 dB', color: '#4b5d6c' }]} />
       )}
     </div>
   )
@@ -84,7 +84,7 @@ export function ReadoutConsequences({ compact }: { compact?: boolean }) {
       </div>
       <label className="check"><input type="checkbox" checked={outputIsolator} onChange={(e) => set({ outputIsolator: e.target.checked })} /> Add one ferrite isolator on the output (+20 dB, costs space and a magnet)</label>
       {!compact && (
-        <p className="muted small">Baseline for comparison, JPA + 3 circulators: {pct(ch.base.best.F)} fidelity, T₂ ≈ {fmtUs(ch.base.t2)}, efficiency η = {ch.base.eta.toFixed(2)} (vs {ch.eta.toFixed(2)} here, because no circulators sit between the qubit and the first amplifier).</p>
+        <p className="muted small">For comparison, a JPA behind three circulators gives {pct(ch.base.best.F)} fidelity, T₂ ≈ {fmtUs(ch.base.t2)}, efficiency η = {ch.base.eta.toFixed(2)} (vs {ch.eta.toFixed(2)} here, because no circulators sit between the qubit and the first amplifier).</p>
       )}
     </div>
   )
@@ -112,8 +112,8 @@ export function ChipReadout() {
       </div>
       <Plot xLabel="probe frequency − 7 GHz (MHz)" yLabel="|S21|" yMin={0} yMax={1} yTicks={4}
         series={[
-          { x: data.x, y: data.y0, color: state === 0 ? '#56a8ff' : '#2c4a70', label: '|0⟩ (ω_r − χ)' },
-          { x: data.x, y: data.y1, color: state === 1 ? '#ffa94d' : '#6e4a2a', label: '|1⟩ (ω_r + χ)' },
+          { x: data.x, y: data.y0, color: state === 0 ? '#35cfe0' : '#1d4f57', label: '|0⟩ (ω_r − χ)' },
+          { x: data.x, y: data.y1, color: state === 1 ? '#f2d32b' : '#5a5120', label: '|1⟩ (ω_r + χ)' },
         ]}
         marks={[{ x: 0, label: 'probe' }]} />
       <p className="muted small">κ/2π = {kappa} MHz, χ/2π = {chi} MHz. Setting 2χ = κ maximizes the signal per photon. These are the same numbers the readout model on the amplifier levels uses ({(READOUT.kappa / TWO_PI).toFixed(0)} MHz, {(READOUT.chi / TWO_PI).toFixed(0)} MHz).</p>
@@ -142,11 +142,11 @@ export function TransmonLevels() {
       <svg viewBox="0 0 300 170" className="levels">
         <text x="70" y="166" textAnchor="middle">harmonic LC</text>
         <text x="220" y="166" textAnchor="middle">transmon</text>
-        {harm.map((h, i) => <line key={'h' + i} x1="30" x2="110" y1={150 - (h / top) * 140} y2={150 - (h / top) * 140} stroke="#5b6478" strokeWidth="2" />)}
+        {harm.map((h, i) => <line key={'h' + i} x1="30" x2="110" y1={150 - (h / top) * 140} y2={150 - (h / top) * 140} stroke="#4b5d6c" strokeWidth="2" />)}
         {levels.map((h, i) => (
           <g key={'t' + i}>
-            <line x1="180" x2="260" y1={150 - (h / top) * 140} y2={150 - (h / top) * 140} stroke={i < 2 ? '#7cc4ff' : '#8b93a7'} strokeWidth="2" />
-            <text x="266" y={154 - (h / top) * 140} fill="#8b93a7" fontSize="10">|{i}⟩</text>
+            <line x1="180" x2="260" y1={150 - (h / top) * 140} y2={150 - (h / top) * 140} stroke={i < 2 ? '#35cfe0' : '#7f8e9a'} strokeWidth="2" />
+            <text x="266" y={154 - (h / top) * 140} fill="#7f8e9a" fontSize="10">|{i}⟩</text>
           </g>
         ))}
       </svg>

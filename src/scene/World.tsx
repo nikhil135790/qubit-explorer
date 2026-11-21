@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Environment, Lightformer } from '@react-three/drei'
+import { OrbitControls, Environment, Lightformer, PerformanceMonitor } from '@react-three/drei'
+import { EffectComposer, Bloom, N8AO, ToneMapping, Vignette, SMAA } from '@react-three/postprocessing'
+import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
 import type { OrbitControls as OC } from 'three-stdlib'
 import { useStore } from '../store'
@@ -96,6 +98,25 @@ function Rig() {
   return null
 }
 
+// light levels tuned per scene: the fridge is metres across, the chips are millimetres of bright film
+const LIGHT = { fridge: [420, 1.4, 0.9], mxc: [260, 1.2, 0.8], amp: [10, 0.35, 0.16], chip: [10, 0.35, 0.16], transmon: [12, 0.35, 0.18], junction: [30, 0.6, 0.3] } as const
+function Lights() {
+  const level = useStore((s) => s.level)
+  const [spot, rim] = LIGHT[level]
+  return (
+    <>
+      <spotLight position={[6, 22, 10]} angle={0.5} penumbra={0.8} intensity={spot} decay={2} color="#fff3e0" />
+      <directionalLight position={[-12, 6, -14]} intensity={rim} color="#8fb6ff" />
+    </>
+  )
+}
+function EnvLevel() {
+  const level = useStore((s) => s.level)
+  const scene = useThree((s) => s.scene)
+  useEffect(() => { scene.environmentIntensity = LIGHT[level][2] }, [level, scene])
+  return null
+}
+
 function LevelScene() {
   const level = useStore((s) => s.level)
   const phase = useStore((s) => s.phase)
@@ -110,22 +131,32 @@ function LevelScene() {
 
 export function World() {
   const L = LEVELS.fridge
+  // adaptive quality: drop resolution and ambient occlusion if the frame rate falls
+  const [dpr, setDpr] = useState(1.5)
+  const [hq, setHq] = useState(true)
   return (
-    <Canvas camera={{ position: L.camera, fov: 42, near: 0.01, far: 2000 }} dpr={[1, 2]} gl={{ antialias: true }}>
-      <color attach="background" args={['#07090d']} />
-      <fog attach="fog" args={['#07090d', 30, 90]} />
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[8, 14, 6]} intensity={1.6} />
-      <directionalLight position={[-10, 4, -8]} intensity={0.5} color="#8fb3ff" />
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={3} position={[0, 8, 0]} rotation-x={Math.PI / 2} scale={[20, 6, 1]} />
-        <Lightformer form="rect" intensity={1.5} position={[-8, 2, 4]} rotation-y={Math.PI / 2} scale={[10, 4, 1]} color="#9fc3ff" />
-        <Lightformer form="rect" intensity={1.2} position={[8, 1, -4]} rotation-y={-Math.PI / 2} scale={[10, 4, 1]} color="#ffd2a1" />
-        <Lightformer form="ring" intensity={2} position={[0, 3, 8]} scale={4} />
+    <Canvas flat camera={{ position: L.camera, fov: 38, near: 0.01, far: 2000 }} dpr={dpr} gl={{ antialias: false, powerPreference: 'high-performance' }}>
+      <PerformanceMonitor bounds={() => [45, 58]} onDecline={() => { setHq(false); setDpr(1) }} onIncline={() => setDpr(1.5)} />
+      <color attach="background" args={['#05080c']} />
+      <fog attach="fog" args={['#05080c', 35, 110]} />
+      <ambientLight intensity={0.15} />
+      {/* key light from above, cool rim from behind: the classic dilution-fridge photo setup */}
+      <Lights />
+      <Environment files="/hdri/studio.hdr" environmentIntensity={0.9}>
+        <Lightformer form="rect" intensity={2.5} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[24, 6, 1]} />
+        <Lightformer form="rect" intensity={1.2} position={[-10, 2, 6]} rotation-y={Math.PI / 2} scale={[12, 4, 1]} color="#a9c8ff" />
       </Environment>
       <LevelScene />
+      <EnvLevel />
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} target={L.target} minDistance={L.minDist} maxDistance={L.maxDist} />
       <Rig />
+      <EffectComposer multisampling={0}>
+        <>{hq && <N8AO aoRadius={0.6} intensity={2.2} distanceFalloff={0.6} quality="performance" halfRes />}</>
+        <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.2} intensity={1.1} mipmapBlur />
+        <ToneMapping mode={ToneMappingMode.AGX} />
+        <Vignette offset={0.25} darkness={0.75} />
+        <SMAA />
+      </EffectComposer>
     </Canvas>
   )
 }

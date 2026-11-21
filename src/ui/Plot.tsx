@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 export type Series = { x: number[]; y: number[]; color: string; label: string; dash?: boolean }
 
 /** Small dependency-free line plot on a canvas. */
-export function Plot({ series, xLabel, yLabel, yMin, yMax, height = 170, marks = [], hLines = [], yTicks = 4 }: {
+export function Plot({ series, xLabel, yLabel, yMin, yMax, height = 200, marks = [], hLines = [], yTicks = 4 }: {
   series: Series[]; xLabel: string; yLabel: string; yMin: number; yMax: number; height?: number
   marks?: { x: number; label: string }[]; hLines?: { y: number; label: string; color: string }[]; yTicks?: number
 }) {
@@ -22,7 +22,9 @@ export function Plot({ series, xLabel, yLabel, yMin, yMax, height = 170, marks =
     const x0 = Math.min(...xs), x1 = Math.max(...xs)
     const X = (x: number) => L + ((x - x0) / (x1 - x0)) * (w - L - R)
     const Y = (y: number) => T + (1 - (Math.min(yMax, Math.max(yMin, y)) - yMin) / (yMax - yMin)) * (h - T - B)
-    g.font = '10px system-ui'; g.strokeStyle = '#2b3242'; g.fillStyle = '#8b93a7'; g.lineWidth = 1
+    g.font = '12px "IBM Plex Mono", monospace'; g.strokeStyle = '#1b2a36'; g.fillStyle = '#7f8e9a'; g.lineWidth = 1
+    for (let i = 0; i <= 10; i++) { g.setLineDash([1, 3]); g.beginPath(); g.moveTo(L + (i * (w - L - R)) / 10, T); g.lineTo(L + (i * (w - L - R)) / 10, h - B); g.stroke() }
+    g.setLineDash([])
     const ny = yTicks
     for (let i = 0; i <= ny; i++) {
       const v = yMin + (i * (yMax - yMin)) / ny
@@ -40,8 +42,8 @@ export function Plot({ series, xLabel, yLabel, yMin, yMax, height = 170, marks =
       g.fillStyle = hl.color; g.textAlign = 'right'; g.fillText(hl.label, w - R - 2, Y(hl.y) - 3)
     }
     for (const m of marks) {
-      g.strokeStyle = '#5b6478'; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(m.x), T); g.lineTo(X(m.x), h - B); g.stroke(); g.setLineDash([])
-      g.fillStyle = '#8b93a7'; g.textAlign = 'left'; g.fillText(m.label, X(m.x) + 3, T + 10)
+      g.strokeStyle = '#4b5d6c'; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(m.x), T); g.lineTo(X(m.x), h - B); g.stroke(); g.setLineDash([])
+      g.fillStyle = '#b9c6d0'; g.textAlign = 'left'; g.fillText(m.label, X(m.x) + 3, T + 10)
     }
     for (const s of series) {
       g.strokeStyle = s.color; g.lineWidth = 2; g.setLineDash(s.dash ? [5, 4] : [])
@@ -52,7 +54,7 @@ export function Plot({ series, xLabel, yLabel, yMin, yMax, height = 170, marks =
     g.setLineDash([])
   })
   return (
-    <div>
+    <div className="plot">
       <div className="legend">{series.map((s) => <span key={s.label}><i style={{ background: s.color }} />{s.label}</span>)}</div>
       <canvas ref={ref} style={{ width: '100%', height }} />
     </div>
