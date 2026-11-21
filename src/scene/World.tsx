@@ -99,7 +99,7 @@ function Rig() {
 }
 
 // light levels tuned per scene: the fridge is metres across, the chips are millimetres of bright film
-const LIGHT = { fridge: [420, 1.4, 0.9], mxc: [260, 1.2, 0.8], amp: [10, 0.35, 0.16], chip: [10, 0.35, 0.16], transmon: [4, 0.25, 0.08], junction: [30, 0.6, 0.3] } as const
+const LIGHT = { fridge: [420, 1.4, 0.9], mxc: [90, 0.8, 0.3], amp: [10, 0.35, 0.16], chip: [10, 0.35, 0.16], transmon: [4, 0.25, 0.08], junction: [30, 0.6, 0.3] } as const
 function Lights() {
   const level = useStore((s) => s.level)
   const [spot, rim] = LIGHT[level]
@@ -110,11 +110,9 @@ function Lights() {
     </>
   )
 }
-function EnvLevel() {
+function EnvForLevel({ children }: { children: React.ReactNode }) {
   const level = useStore((s) => s.level)
-  const scene = useThree((s) => s.scene)
-  useEffect(() => { scene.environmentIntensity = LIGHT[level][2] }, [level, scene])
-  return null
+  return <Environment files="/hdri/studio.hdr" environmentIntensity={LIGHT[level][2]}>{children}</Environment>
 }
 
 function LevelScene() {
@@ -142,17 +140,16 @@ export function World() {
       <ambientLight intensity={0.15} />
       {/* key light from above, cool rim from behind: the classic dilution-fridge photo setup */}
       <Lights />
-      <Environment files="/hdri/studio.hdr" environmentIntensity={0.9}>
-        <Lightformer form="rect" intensity={2.5} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[24, 6, 1]} />
+      <EnvForLevel>
+        <Lightformer form="rect" intensity={1.3} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[24, 6, 1]} />
         <Lightformer form="rect" intensity={1.2} position={[-10, 2, 6]} rotation-y={Math.PI / 2} scale={[12, 4, 1]} color="#a9c8ff" />
-      </Environment>
+      </EnvForLevel>
       <LevelScene />
-      <EnvLevel />
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} target={L.target} minDistance={L.minDist} maxDistance={L.maxDist} />
       <Rig />
       <EffectComposer multisampling={0}>
         <>{hq && <N8AO aoRadius={0.6} intensity={2.2} distanceFalloff={0.6} quality="performance" halfRes />}</>
-        <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.2} intensity={1.1} mipmapBlur />
+        <Bloom luminanceThreshold={1.1} luminanceSmoothing={0.15} intensity={0.7} radius={0.45} mipmapBlur />
         <ToneMapping mode={ToneMappingMode.AGX} />
         <Vignette offset={0.25} darkness={0.75} />
         <SMAA />

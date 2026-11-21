@@ -70,7 +70,7 @@ function Intro({ onClose }: { onClose: () => void }) {
 
 export function Overlay() {
   const [intro, setIntro] = useState(true)
-  const { level, phase, history, goTo, back, scaleLabel, scalePx } = useStore()
+  const { level, phase, history, goTo, back, scaleLabel, scalePx, labelsOn, set } = useStore()
   const L = LEVELS[level]
   return (
     <>
@@ -78,8 +78,11 @@ export function Overlay() {
 
       <header className="masthead">
         <h1>Down the readout line</h1>
-        <p>How a superconducting qubit gets measured, from the refrigerator down to a single junction. Each level is drawn to scale.</p>
       </header>
+      <div className="rail-tools">
+        <label className="toggle"><input type="checkbox" checked={labelsOn} onChange={(e) => set({ labelsOn: e.target.checked })} /> Show all labels</label>
+        <span className="hint">Drag to orbit. Scroll to zoom. Hover a dot to name a part. Click a yellow button to go deeper.</span>
+      </div>
 
       <Ruler />
 
@@ -126,7 +129,6 @@ export function Overlay() {
 
       <footer className="status">
         <div className="scale"><div className="bar" style={{ width: scalePx }} /><span>{scaleLabel}</span></div>
-        <span className="hint">Drag to orbit. Scroll to zoom. Click a ring to go deeper.</span>
       </footer>
     </>
   )

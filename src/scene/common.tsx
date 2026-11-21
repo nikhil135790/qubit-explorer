@@ -75,11 +75,15 @@ export function Flow({ points, color, count = 24, speed = 0.12, size = 0.08, siz
   )
 }
 
-/** A floating text label anchored in 3D. */
-export function Label({ pos, children, small, color }: { pos: [number, number, number]; children: React.ReactNode; small?: boolean; color?: string }) {
+/** A label pin: a small dot that reveals its text on hover or tap (or always, when labels are switched on). */
+export function Label({ pos, children, color }: { pos: [number, number, number]; children: React.ReactNode; small?: boolean; color?: string }) {
+  const [open, setOpen] = useState(false)
   return (
-    <Html position={pos} center zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
-      <div className={small ? 'lbl lbl-s' : 'lbl'} style={color ? { borderColor: color, color } : undefined}>{children}</div>
+    <Html position={pos} center zIndexRange={[10, 0]}>
+      <div className={'pin' + (open ? ' open' : '')} onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)} onClick={() => setOpen((o) => !o)}>
+        <span className="dot" style={color ? { background: color } : undefined} />
+        <span className="txt" style={color ? { borderLeftColor: color } : undefined}>{children}</span>
+      </div>
     </Html>
   )
 }

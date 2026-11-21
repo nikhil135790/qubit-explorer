@@ -15,6 +15,7 @@ type State = {
   outputIsolator: boolean
   // readout chain controls
   nsrc: number
+  labelsOn: boolean
   // scale bar
   scaleLabel: string
   scalePx: number
@@ -35,6 +36,7 @@ export const useStore = create<State>((set, get) => ({
   s: 1,
   outputIsolator: false,
   nsrc: 10,
+  labelsOn: false,
   scaleLabel: '',
   scalePx: 100,
   goTo: (to, via) => {

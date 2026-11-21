@@ -16,7 +16,7 @@ export function Mxc() {
   return (
     <group>
       {/* gold-plated copper plate */}
-      <mesh position={[0, -0.4, 0]}><boxGeometry args={[26, 0.8, 16]} /><Std {...MAT.gold} /></mesh>
+      <mesh position={[0, -0.4, 0]}><boxGeometry args={[26, 0.8, 16]} /><meshStandardMaterial color="#6e5228" metalness={0.65} roughness={0.62} /></mesh>
       {/* bolt holes */}
       {Array.from({ length: 10 }, (_, i) => (
         <mesh key={i} position={[-11 + (i % 5) * 5.5, 0.01, i < 5 ? -6.5 : 6.5]} rotation={[0, 0, 0]}>
@@ -32,7 +32,7 @@ export function Mxc() {
         <mesh key={i} position={p as [number, number, number]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.28, 0.28, 0.5, 16]} /><Std {...MAT.gold} /></mesh>
       ))}
       {/* magnetic shield (cryoperm can), drawn see-through */}
-      <mesh position={[-4, 2.2, 0]}><cylinderGeometry args={[3.4, 3.4, 4.6, 48, 1, true]} /><meshStandardMaterial color="#9aa7b8" metalness={0.8} roughness={0.4} transparent opacity={0.12} side={2} /></mesh>
+      <mesh position={[-4, 2.2, 0]}><cylinderGeometry args={[3.4, 3.4, 4.6, 48, 1, true]} /><meshStandardMaterial color="#5c6672" metalness={0.3} roughness={0.6} transparent opacity={0.08} side={2} depthWrite={false} /></mesh>
       <Label pos={[-4, 5.1, 0]} small color="#7cc4ff">Qubit package inside magnetic shield</Label>
 
       {/* directional amplifier package */}
