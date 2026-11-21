@@ -1,0 +1,41 @@
+.bench { position: fixed; inset: 0; background: #16171b; color: #efe9dd; font-family: 'Newsreader', Georgia, serif; }
+.bench button { font-family: inherit; color: inherit; cursor: pointer; }
+.bench button:disabled { opacity: 0.35; cursor: default; }
+.bench button:focus-visible { outline: 2px solid #ffcf6e; outline-offset: 3px; }
+
+.b-head { position: fixed; top: 26px; left: 34px; pointer-events: none; }
+.b-head h1 { margin: 0; font-weight: 500; font-size: 2.2rem; letter-spacing: -0.015em; }
+.b-head p { margin: 4px 0 0; font-size: 1.15rem; color: #b9b1a2; font-style: italic; }
+
+.b-setups { position: fixed; top: 34px; right: 34px; display: flex; align-items: baseline; gap: 16px; font-size: 1.05rem; }
+.b-setups span { color: #8d877b; font-style: italic; }
+.b-setups button { background: none; border: none; border-bottom: 1px solid rgba(239, 233, 221, 0.3); padding: 3px 0; font-size: 1.05rem; }
+.b-setups button:hover { border-bottom-color: #efe9dd; }
+
+.b-warn { position: fixed; top: 120px; left: 50%; transform: translateX(-50%); max-width: 640px; text-align: center; color: #ff9a8f; font-size: 1.1rem; font-style: italic; }
+
+.b-bottom { position: fixed; left: 34px; right: 34px; bottom: 28px; display: flex; align-items: flex-end; gap: 28px; }
+.b-tray { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
+.b-tray button { position: relative; display: flex; align-items: center; gap: 9px; background: #222328; border: 1px solid #34353b; border-radius: 8px; padding: 10px 14px; font-size: 1.05rem; }
+.b-tray button:hover:not(:disabled) { border-color: #6b675e; background: #28292e; }
+.b-tray i { width: 12px; height: 12px; border-radius: 50%; }
+.b-tray small { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; width: 260px; font-size: 0.95rem; line-height: 1.35; background: #0f1013; border: 1px solid #34353b; border-radius: 6px; padding: 8px 10px; color: #d9d2c4; z-index: 5; }
+.b-tray button:hover small { display: block; }
+
+.b-run { display: flex; align-items: center; gap: 18px; }
+.b-state { display: flex; align-items: baseline; gap: 10px; font-size: 1.05rem; color: #8d877b; font-style: italic; }
+.b-state button { background: none; border: none; border-bottom: 1px solid transparent; font-style: normal; font-size: 1.2rem; padding: 2px 4px; }
+.b-state button.on { color: #ffcf6e; border-bottom-color: #ffcf6e; }
+.b-go { background: #ffcf6e; color: #1b1810 !important; border: none; border-radius: 8px; padding: 11px 20px; font-size: 1.15rem; font-weight: 500; }
+.b-go.alt { background: none; color: #ffcf6e !important; border: 1px solid rgba(255, 207, 110, 0.5); }
+
+.b-tag { font-family: 'Newsreader', Georgia, serif; color: #cfc7b7; font-size: 15px; white-space: nowrap; pointer-events: none; }
+.b-tag.strong { color: #efe9dd; font-size: 16px; }
+
+/* the scientist's screen (rendered inside the 3D monitor) */
+.scr { width: 600px; background: #0b1310; border-radius: 6px; padding: 14px 18px; font-family: 'IBM Plex Mono', monospace; color: #8fd1ad; }
+.scr-top { display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 8px; }
+.scr canvas { width: 100%; height: auto; display: block; border-radius: 3px; }
+.scr-stats { display: flex; justify-content: space-between; font-size: 15px; margin-top: 10px; color: #5f9c7d; }
+.scr-stats b { color: #c9f0da; font-weight: 500; }
+.scr .ok { color: #7cf0a8; } .scr .bad { color: #ff7b72; } .scr .warn { color: #ffcf6e; }

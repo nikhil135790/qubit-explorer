@@ -1,6 +1,13 @@
-import { Journey } from './journey/Journey'
+import { Bench } from './bench/Bench'
+import { BenchUI } from './bench/BenchUI'
+import './bench/bench.css'
 
-// The earlier six-level explorer still lives in src/scene and src/ui.
+// Earlier versions (six-level explorer, captioned journey) live in src/scene, src/ui and src/journey.
 export default function App() {
-  return <Journey />
+  return (
+    <div className="bench">
+      <Bench />
+      <BenchUI />
+    </div>
+  )
 }
