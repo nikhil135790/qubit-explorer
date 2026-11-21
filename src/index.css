@@ -114,7 +114,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--trace-c); o
 .hot { font-family: 'IBM Plex Sans', sans-serif; white-space: nowrap; transform: translateY(30px); background: var(--trace-y); border: none; color: #1b1a12; border-radius: 3px; padding: 7px 13px; font-size: 15px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
 .hot:hover { background: #fff1a0; }
 
-@media (max-width: 900px) {
+/* medium windows (laptop with display scaling, half-screen): keep side-by-side, trim clutter */
+@media (max-width: 1250px) {
+  :root { --panel-w: 42vw; --rail-w: 150px; }
+  .ruler { left: 62px; width: 84px; }
+  .lbl-s { display: none; }
+  .lbl { font-size: 13px; }
+  .masthead p { display: none; }
+  .masthead h1 { font-size: 1.35rem; }
+  .panel h2 { font-size: 1.6rem; }
+}
+@media (max-width: 640px) {
   :root { --panel-w: 100vw; }
   .stage { right: 0; bottom: 48vh; }
   .panel { top: auto; height: 48vh; width: 100%; }
