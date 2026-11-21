@@ -47,13 +47,13 @@ export const RESONATOR: [number, number][] = [
 ]
 export const QUBIT_POS: [number, number, number] = [0, 0, -16]
 
-export function Chip() {
+/** pulseX: optional function giving the current pulse position along the feedline (for the resonator glow). */
+export function Chip({ pulseX }: { pulseX?: () => number } = {}) {
   // the resonator lights up (warm glow) while a pulse is passing the coupling point
   const group = useRef<THREE.Group>(null)
   useFrame(() => {
     const { firedAt } = useJourney.getState()
-    const t = performance.now() / 1000 - firedAt
-    const center = -38 + t * 16 // must match Pulse speed
+    const center = pulseX ? pulseX() : -38 + (performance.now() / 1000 - firedAt) * 16
     const ring = Math.exp(-(((center - 0) / 6) ** 2)) + (center > 0 ? 0.6 * Math.exp(-(center - 0) / 14) : 0)
     if (!group.current) return
     group.current.traverse((o) => {

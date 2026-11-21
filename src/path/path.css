@@ -1,0 +1,30 @@
+.path { position: fixed; inset: 0; background: #141519; color: #efe9dd; font-family: 'Newsreader', Georgia, serif; }
+.path button { font-family: inherit; color: inherit; cursor: pointer; }
+.path button:focus-visible { outline: 2px solid #ffcf6e; outline-offset: 3px; }
+
+.p-title { position: fixed; top: 28px; left: 36px; display: flex; align-items: baseline; gap: 14px; pointer-events: none; }
+.p-num { font-size: 1.1rem; color: #8d877b; font-style: italic; }
+.p-title h1 { margin: 0; font-weight: 500; font-size: 2.2rem; letter-spacing: -0.015em; }
+
+.p-caption { position: fixed; left: 36px; bottom: 104px; max-width: 760px; margin: 0; font-size: clamp(1.2rem, 1rem + 0.5vw, 1.55rem); line-height: 1.4; text-shadow: 0 1px 14px rgba(0,0,0,.8); animation: cap-in 0.6s ease both; }
+@keyframes cap-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.p-hint { position: fixed; top: 34px; right: 36px; margin: 0; color: #b9b1a2; font-style: italic; font-size: 1.05rem; }
+
+.p-bar { position: fixed; left: 36px; right: 36px; bottom: 30px; display: flex; align-items: center; gap: 22px; }
+.p-play { background: #efe9dd; color: #17181c !important; border: none; border-radius: 999px; padding: 9px 20px; font-size: 1.05rem; min-width: 92px; }
+.p-stations { flex: 1; display: flex; gap: 6px; }
+.p-st { position: relative; flex: 1; height: 38px; background: rgba(239, 233, 221, 0.07); border: none; border-radius: 4px; overflow: hidden; text-align: left; padding: 0 12px; }
+.p-st .fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 207, 110, 0.22); transition: width 0.1s linear; }
+.p-st .lbl { position: relative; font-size: 0.98rem; white-space: nowrap; }
+.p-st.on .lbl { color: #ffcf6e; }
+.p-st.soon { opacity: 0.35; cursor: default; }
+.p-q { display: flex; align-items: baseline; gap: 8px; color: #8d877b; font-style: italic; }
+.p-q button { background: none; border: none; border-bottom: 1px solid transparent; font-style: normal; font-size: 1.15rem; padding: 2px 4px; }
+.p-q button.on { color: #ffcf6e; border-bottom-color: #ffcf6e; }
+.p-replay { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(20,21,25,.85); border: 1px solid #5d5a52; border-radius: 999px; padding: 12px 26px; font-size: 1.2rem; }
+
+@media (max-width: 800px) {
+  .p-bar { flex-wrap: wrap; }
+  .p-st .lbl { font-size: 0.8rem; }
+  .p-caption { bottom: 150px; right: 20px; left: 20px; }
+}
