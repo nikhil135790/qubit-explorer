@@ -31,6 +31,9 @@ function Transmon({ x0, detailed }: { x0: number; detailed?: boolean }) {
       <Rect x={0} z={0} w={6} d={7.4} y={Y_GAP} mat={GAP} />
       <Rect x={0} z={1.35} w={4} d={2.5} y={Y_TRACE} mat={TA} h={0.012} />
       <Rect x={0} z={-1.35} w={4} d={2.5} y={Y_TRACE} mat={TA} h={0.012} />
+      {/* aluminum contact patches where the junction leads land on the tantalum pads */}
+      <mesh position={[0, Y_TRACE + 0.0068, 0.16]}><boxGeometry args={[0.1, 0.0012, 0.12]} /><meshStandardMaterial color="#c6c9ce" metalness={0.9} roughness={0.35} /></mesh>
+      <mesh position={[0.03, Y_TRACE + 0.0068, -0.16]}><boxGeometry args={[0.1, 0.0012, 0.12]} /><meshStandardMaterial color="#c6c9ce" metalness={0.9} roughness={0.35} /></mesh>
       {/* junction leads, ~1 µm wide: hair-thin at chip scale. The followed qubit gets a detailed junction instead. */}
       {!detailed && <>
         <mesh position={[0, Y_GAP + 0.0052, 0.05]}><boxGeometry args={[0.01, 0.0003, 0.1]} /><meshStandardMaterial color="#c9ccd1" metalness={0.9} roughness={0.45} /></mesh>

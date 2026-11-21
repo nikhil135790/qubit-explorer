@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Environment, OrbitControls } from '@react-three/drei'
 import { EffectComposer, Bloom, ToneMapping, Vignette } from '@react-three/postprocessing'
@@ -7,7 +7,9 @@ import type { OrbitControls as OC } from 'three-stdlib'
 import * as THREE from 'three'
 import { usePath, STATIONS, BUILT, beatRunning } from './state'
 import { StationQubit } from './StationQubit'
-import { StationAmp, X_AMP } from './StationAmp'
+import { StationAmp } from './StationAmp'
+import { Fridge, OurLines } from './Fridge'
+import { rig } from './rig'
 import { Tex } from '../ui/Tex'
 import './path.css'
 
@@ -25,7 +27,11 @@ function Clock() {
   return null
 }
 
-/** Between steps (or while paused) the viewer can drag to look around and scroll to zoom. */
+/**
+ * Between steps (or while paused) the viewer can drag to look around and scroll to zoom.
+ * The pivot is exactly where the scripted camera is aiming, and the zoom limits scale with the
+ * current distance, so dragging at the junction orbits the junction instead of a point inside the chip.
+ */
 function LookAround() {
   const { camera } = useThree()
   const controls = useThree((s) => s.controls) as unknown as OC | null
@@ -40,22 +46,50 @@ function LookAround() {
     const st = usePath.getState()
     const free = st.paused || !beatRunning()
     if (free && !controls.enabled) {
-      // put the orbit pivot where the camera is looking, so dragging feels natural
-      const dir = new THREE.Vector3()
-      camera.getWorldDirection(dir)
-      const d = Math.min(60, Math.max(4, camera.position.y * 1.2))
-      controls.target.copy(camera.position).add(dir.multiplyScalar(d))
+      const d = camera.position.distanceTo(rig.look)
+      controls.target.copy(rig.look)
+      controls.minDistance = d * 0.12
+      controls.maxDistance = d * 6
+      // stay above the surface being looked at, except for the fridge overview
+      controls.maxPolarAngle = d > 5000 ? Math.PI * 0.62 : Math.PI * 0.48
       controls.update()
     }
     controls.enabled = free
   })
-  return <OrbitControls makeDefault enableDamping={false} enabled={false} minDistance={0.5} maxDistance={600} />
+  return <OrbitControls makeDefault enableDamping={false} enablePan={false} enabled={false} />
+}
+
+/**
+ * Keeps depth precision and lighting right across nine orders of magnitude: the near plane follows
+ * the camera distance, and the overall light comes up for the wide fridge shots, where the small
+ * overhead lamp over the chip would leave everything else dark.
+ */
+function ScaleRig() {
+  const { camera, scene } = useThree()
+  const key = useRef<THREE.DirectionalLight>(null)
+  useFrame(() => {
+    const d = Math.max(1e-6, camera.position.distanceTo(rig.look))
+    const cam = camera as THREE.PerspectiveCamera
+    cam.near = Math.min(20, Math.max(1e-6, d * 0.004))
+    cam.far = 400000
+    cam.updateProjectionMatrix()
+    const f = THREE.MathUtils.smoothstep(Math.log10(d), 2.2, 3.6)
+    scene.environmentIntensity = 0.2 + 0.55 * f
+    if (key.current) key.current.intensity = 2.6 * f
+  })
+  return <directionalLight ref={key} position={[30000, 26000, 42000]} intensity={0} color="#fff1dc" />
 }
 
 // test hook for screenshot scripts: jump to a station and beat, already finished
 ;(window as unknown as { __goto: (s: number, b: number) => void }).__goto = (s: number, b: number) => {
   const u = STATIONS[s].beats[b].u
   usePath.getState().set({ station: s, beat: b, u, from: u, orbiting: false, paused: false })
+}
+
+// test hook: freeze the story at station s, progress u (camera follows exactly, no easing)
+;(window as unknown as { __at: (s: number, u: number) => void }).__at = (s: number, u: number) => {
+  rig.catchup = 0
+  usePath.getState().set({ station: s, beat: 0, u, from: u, orbiting: false, paused: false })
 }
 
 // test hook: set progress within the current station and hold there
@@ -69,21 +103,20 @@ export function Path() {
   const atEnd = station === BUILT - 1 && beat === S.beats.length - 1
   return (
     <div className="path">
-      <Canvas flat dpr={[1, 1.75]} camera={{ position: [13.2, 11.5, -7.6], fov: 34, near: 0.00001, far: 6000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
+      <Canvas flat dpr={[1, 1.75]} camera={{ position: [13950, 8500, 26300], fov: 34, near: 1, far: 400000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
         <color attach="background" args={['#141519']} />
         <hemisphereLight args={['#fff4e2', '#141519', 0.42]} />
         <spotLight position={[10, 220, -20]} angle={0.9} penumbra={1} intensity={550} decay={2} color="#ffe8c6" />
         <directionalLight position={[120, 40, -120]} intensity={0.5} color="#9db7ff" />
         <Environment files="/hdri/studio.hdr" environmentIntensity={0.2} environmentRotation={[0, Math.PI * 0.75, 0]} />
-        {/* one continuous world: both boxes sit on the fridge's coldest plate, 9 cm apart */}
-        <mesh position={[(X_AMP - 420 + 250) / 2 - 0, -30, 0]}>
-          <boxGeometry args={[X_AMP + 670, 10, 900]} />
-          <meshStandardMaterial color="#b08a45" metalness={0.9} roughness={0.42} />
-        </mesh>
+        {/* one continuous world: the fridge, with both boxes on its coldest plate */}
+        <Fridge />
+        <OurLines />
         <StationQubit />
         <StationAmp />
         <Clock />
         <LookAround />
+        <ScaleRig />
         <EffectComposer multisampling={4}>
           <Bloom luminanceThreshold={1.0} intensity={0.6} radius={0.45} mipmapBlur />
           <ToneMapping mode={ToneMappingMode.AGX} />
@@ -102,7 +135,7 @@ export function Path() {
         <div className="p-steps">
           <button onClick={back} disabled={station === 0 && beat === 0}>Back</button>
           <button className="p-next" onClick={atEnd ? () => goStation(0) : next}>{atEnd ? 'Start over' : 'Next'}</button>
-          <button onClick={() => set({ paused: !paused })}>{paused ? 'Resume' : 'Pause'}</button>
+          <button onClick={() => { if (paused && usePath.getState().orbiting) rig.catchup = 1.2; set(paused ? { paused: false, orbiting: false } : { paused: true }) }}>{paused ? 'Resume' : 'Pause'}</button>
           <button onClick={replay}>Replay step</button>
         </div>
         <div className="p-stations">

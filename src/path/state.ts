@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { rig } from './rig'
 
 /**
  * The journey is a list of stations, each split into beats (steps). A beat moves the station's
@@ -10,12 +11,14 @@ export type Beat = { u: number; dur: number; caption: string }
 export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
   {
     id: 'qubit', name: 'The qubit', beats: [
-      { u: 0.06, dur: 4, caption: 'This transmon qubit is two tantalum pads on silicon, joined by a hair-thin Josephson junction.' },
-      { u: 0.14, dur: 7, caption: 'Up close, the junction is two crossed aluminum wires with a thin oxide layer between them that Cooper pairs tunnel through.' },
-      { u: 0.3, dur: 7, caption: 'The whole chip holds four qubits, each with its own zigzag readout resonator on a shared feedline.' },
-      { u: 0.5, dur: 5.5, caption: 'We measure the qubit by sending a microwave pulse down the feedline, drawn here as a spiral showing its electric field.' },
-      { u: 0.66, dur: 6, caption: 'Passing the resonator twists the pulse by $\\pm 45^\\circ$ depending on the qubit’s state, and the blue spiral shows the other case.' },
-      { u: 0.85, dur: 5, caption: 'The pulse leaves the chip through thin aluminum wire bonds and travels onto the circuit board.' },
+      { u: 0.04, dur: 5, caption: 'This is a dilution refrigerator with its outer shields removed, and its bottom plate sits at 10 millikelvin, nearly 300 times colder than deep space.' },
+      { u: 0.2, dur: 7, caption: 'On the bottom plate sit two copper boxes, one holding our qubit chip and one holding the directional amplifier, joined by a short coax cable.' },
+      { u: 0.248, dur: 7, caption: 'This transmon qubit is two tantalum pads on silicon, joined by a Josephson junction.' },
+      { u: 0.312, dur: 7, caption: 'Up close, the junction is two crossed aluminum wires with a thin oxide layer between them that Cooper pairs tunnel through.' },
+      { u: 0.44, dur: 7, caption: 'The whole chip holds four qubits, each with its own zigzag readout resonator on a shared feedline.' },
+      { u: 0.6, dur: 5.5, caption: 'We measure the qubit by sending a microwave pulse down the feedline, drawn here as a spiral showing its electric field.' },
+      { u: 0.728, dur: 6, caption: 'Passing the resonator twists the pulse by $\\pm 45^\\circ$ depending on the qubit’s state, and the blue spiral shows the other case.' },
+      { u: 0.88, dur: 5, caption: 'The pulse leaves the chip through thin aluminum wire bonds and travels onto the circuit board.' },
       { u: 1, dur: 4, caption: 'It then passes through the connector on the side of the box, toward the directional amplifier.' },
     ],
   },
@@ -37,6 +40,10 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
 ]
 
 export const BUILT = 2 // stations finished so far
+
+/** Station 1 opens on the fridge and the plate; from u = INTRO on, v runs 0..1 over the chip part. */
+export const INTRO = 0.2
+export const chipV = (u: number) => (u - INTRO) / (1 - INTRO)
 
 /** In station 2, u from 0 to 0.1 is the cable ride; the amplifier itself runs from 0.1 to 1. */
 export const AMP_START = 0.1
@@ -71,17 +78,19 @@ export const usePath = create<PathState>((set, get) => ({
   qubit: 1,
   set: (p) => set(p),
   next: () => {
-    const { station, beat } = get()
+    const { station, beat, orbiting } = get()
+    if (orbiting) rig.catchup = 1.2
     if (beat < STATIONS[station].beats.length - 1) set({ beat: beat + 1, from: get().u, paused: false, orbiting: false })
-    else if (station < BUILT - 1) set({ station: station + 1, beat: 0, u: 0, from: 0, paused: false, orbiting: false })
+    else if (station < BUILT - 1) { rig.catchup = 1.2; set({ station: station + 1, beat: 0, u: 0, from: 0, paused: false, orbiting: false }) }
   },
   back: () => {
+    rig.catchup = 1.2
     const { station, beat } = get()
     if (beat > 0) { const u = beatStart(station, beat - 1); set({ beat: beat - 1, u, from: u, paused: false, orbiting: false }) }
     else if (station > 0) { const s = station - 1, b = STATIONS[s].beats.length - 1, u = beatStart(s, b); set({ station: s, beat: b, u, from: u, paused: false, orbiting: false }) }
   },
-  replay: () => { const { station, beat } = get(); const u = beatStart(station, beat); set({ u, from: u, paused: false, orbiting: false }) },
-  goStation: (i) => set({ station: i, beat: 0, u: 0, from: 0, paused: false, orbiting: false }),
+  replay: () => { rig.catchup = 1.2; const { station, beat } = get(); const u = beatStart(station, beat); set({ u, from: u, paused: false, orbiting: false }) },
+  goStation: (i) => { rig.catchup = 1.2; set({ station: i, beat: 0, u: 0, from: 0, paused: false, orbiting: false }) },
 }))
 
 /** Is the current beat still playing? */
@@ -90,3 +99,6 @@ export const beatRunning = () => { const s = usePath.getState(); return s.u < ST
 export const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
 export const smooth = (x: number) => { const t = clamp01(x); return t * t * (3 - 2 * t) }
 export const seg = (u: number, a: number, b: number) => smooth((u - a) / (b - a))
+
+/** True once the current beat has finished moving, so labels only appear on a still frame. */
+export const useSettled = () => usePath((s) => s.u >= STATIONS[s.station].beats[s.beat].u - 1e-4)

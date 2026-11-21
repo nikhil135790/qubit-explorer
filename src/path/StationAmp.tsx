@@ -9,8 +9,8 @@ import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { Bond, GOLD, PCB } from './StationQubit'
-import { usePath, seg, ampU } from './state'
-import { blendShots, follow } from './rig'
+import { usePath, seg, ampU, useSettled } from './state'
+import { blendShots, drive, rig } from './rig'
 import type { Shot } from './rig'
 
 // Scene units: 1 = 0.1 mm. A 5 mm amplifier chip: three resonators (a, b, c) meeting at a
@@ -58,6 +58,7 @@ function AmpPackage() {
     bonds.push([[dz, 0.1, 23.6], [dz, 0.1, 30]])
   }
   for (const z of [-20, -10, 14]) { bonds.push([[-24.5, 0.1, z], [-30, 0.1, z]]); bonds.push([[24.5, 0.1, z], [30, 0.1, z]]) }
+  for (const x of [-18, -9, 9, 18]) { bonds.push([[x, 0.1, -24.5], [x, 0.1, -30]]); bonds.push([[x, 0.1, 24.5], [x, 0.1, 30]]) }
   return (
     <group>
       {[[-54, 0, 56, 170], [54, 0, 56, 170], [0, -55, 52, 56], [0, 55, 52, 56]].map(([x, z, w, d], i) => (
@@ -150,7 +151,8 @@ const stationU = () => { const st = usePath.getState(); return st.station === 1 
 const here = () => usePath.getState().station === 1
 
 export function StationAmp() {
-  const beat = usePath((st) => (st.station === 1 ? st.beat : -1))
+  const settled = useSettled()
+  const beat = usePath((st) => (st.station === 1 && settled ? st.beat : -1))
   const { camera } = useThree()
   const fwd = useMemo(() => v3(FORWARD), [])
   const det = useMemo(() => v3(DETOUR), [])
@@ -210,7 +212,6 @@ export function StationAmp() {
     twist: () => READOUT_PHASE[usePath.getState().qubit],
   }), [cableLen])
 
-  const look = useRef(new THREE.Vector3(X_AMP, 0, 0))
   const tmp = useMemo(() => ({ p: new THREE.Vector3(), c: new THREE.Vector3(), s1: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot }), [])
   const off = (x: number, y: number, z: number) => new THREE.Vector3(x + X_AMP, y, z)
   useFrame((_, dt) => {
@@ -237,10 +238,10 @@ export function StationAmp() {
       blendShots(start, wide, seg(ut, 0, 0.4), tmp.s1)
       shot = blendShots(tmp.s1, K[0], seg(ut, 0.6, 1))
     }
-    vis.current = Math.max(1, camera.position.distanceTo(look.current) / 24)
+    vis.current = Math.max(1, camera.position.distanceTo(rig.look) / 24)
     const { paused, orbiting } = usePath.getState()
     if (!here() || paused || orbiting) return
-    follow(camera, look.current, shot, 1 - Math.exp(-dt * 3))
+    drive(camera, shot, dt)
   })
 
   return (
