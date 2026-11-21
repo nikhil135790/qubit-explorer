@@ -8,6 +8,8 @@ import * as THREE from 'three'
 import { usePath, STATIONS, BUILT, beatRunning } from './state'
 import { StationQubit } from './StationQubit'
 import { StationAmp } from './StationAmp'
+import { StationIso } from './StationIso'
+import { TwistDial } from './TwistDial'
 import { Fridge, OurLines } from './Fridge'
 import { rig } from './rig'
 import { Tex } from '../ui/Tex'
@@ -114,6 +116,7 @@ export function Path() {
         <OurLines />
         <StationQubit />
         <StationAmp />
+        <StationIso />
         <Clock />
         <LookAround />
         <ScaleRig />
@@ -130,6 +133,8 @@ export function Path() {
       </div>
       <p className="p-caption" key={station + '-' + beat}><Tex>{B.caption}</Tex></p>
       <p className="p-hint">{paused ? 'Paused. Drag to look around, scroll to zoom.' : running ? '' : 'Drag to look around. Press Next when you’re ready.'}</p>
+
+      <TwistDial />
 
       <footer className="p-bar">
         <div className="p-steps">

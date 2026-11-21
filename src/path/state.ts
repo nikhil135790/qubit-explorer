@@ -17,7 +17,7 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
       { u: 0.312, dur: 7, caption: 'Up close, the junction is two crossed aluminum wires with a thin oxide layer between them that Cooper pairs tunnel through.' },
       { u: 0.44, dur: 7, caption: 'The whole chip holds four qubits, each with its own zigzag readout resonator on a shared feedline.' },
       { u: 0.6, dur: 5.5, caption: 'We measure the qubit by sending a microwave pulse down the feedline, drawn here as a spiral showing its electric field.' },
-      { u: 0.728, dur: 6, caption: 'Passing the resonator twists the pulse by $\\pm 45^\\circ$ depending on the qubit’s state, and the blue spiral shows the other case.' },
+      { u: 0.728, dur: 6, caption: 'Passing the resonator twists the pulse by $+45^\\circ$ if the qubit is 1 and $-45^\\circ$ if it is 0, so measuring the twist reads out the qubit.' },
       { u: 0.88, dur: 5, caption: 'The pulse leaves the chip through thin aluminum wire bonds and travels onto the circuit board.' },
       { u: 1, dur: 4, caption: 'It then passes through the connector on the side of the box, toward the directional amplifier.' },
     ],
@@ -34,12 +34,20 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
       { u: 1, dur: 4, caption: 'The amplified pulse leaves through the output connector and heads to the isolator.' },
     ],
   },
-  { id: 'iso', name: 'Isolator', beats: [{ u: 1, dur: 4, caption: '' }] },
+  {
+    id: 'iso', name: 'Isolator', beats: [
+      { u: 0.15, dur: 6, caption: 'A short coax cable carries the amplified pulse to the isolator, a small block that lets microwaves pass in only one direction.' },
+      { u: 0.3, dur: 6, caption: 'Inside, a magnet sits on a disk of ferrite, a magnetic ceramic that steers microwaves around the center in one direction only.' },
+      { u: 0.6, dur: 7, caption: 'Our pulse enters port 1 and gets steered around the ferrite to port 2, losing almost nothing on the way.' },
+      { u: 0.85, dur: 6, caption: 'Noise coming back down from the HEMT enters port 2 and gets steered on to port 3, where a resistor soaks it up.' },
+      { u: 1, dur: 6, caption: 'Now amplified and shielded from backward noise, the pulse climbs the fridge toward the HEMT amplifier on the 4 K plate.' },
+    ],
+  },
   { id: 'hemt', name: 'HEMT at 4 K', beats: [{ u: 1, dur: 4, caption: '' }] },
   { id: 'screen', name: 'The screen', beats: [{ u: 1, dur: 4, caption: '' }] },
 ]
 
-export const BUILT = 2 // stations finished so far
+export const BUILT = 3 // stations finished so far
 
 /** Station 1 opens on the fridge and the plate; from u = INTRO on, v runs 0..1 over the chip part. */
 export const INTRO = 0.2
