@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Chip } from '../journey/Chip'
+import { Chip, Cpw, Rect, FILM, GAP, Y_GAP, Y_TRACE } from '../journey/Chip'
 import { READOUT_PHASE, READOUT_AMP } from '../journey/state'
 import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
@@ -9,11 +9,11 @@ import type { TrailSpec } from './PulseTrail'
 import { usePath, seg } from './state'
 
 // Scene units: 1 = 0.1 mm. The chip (9 x 6 mm) sits in a pocket of a gold-plated circuit board.
-const GOLD = { color: '#c39a4c', metalness: 1, roughness: 0.34 }
-const PCB = { color: '#3b3428', metalness: 0.1, roughness: 0.8 }
-const AL = { color: '#d3d0c8', metalness: 1, roughness: 0.25 }
+export const GOLD = { color: '#c39a4c', metalness: 1, roughness: 0.34 }
+export const PCB = { color: '#3b3428', metalness: 0.1, roughness: 0.8 }
+export const AL = { color: '#d3d0c8', metalness: 1, roughness: 0.25 }
 
-function Bond({ from, to, h = 4 }: { from: [number, number, number]; to: [number, number, number]; h?: number }) {
+export function Bond({ from, to, h = 4 }: { from: [number, number, number]; to: [number, number, number]; h?: number }) {
   const curve = useMemo(() => {
     const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to)
     const m = a.clone().lerp(b, 0.35).setY(Math.max(a.y, b.y) + h)
@@ -60,6 +60,33 @@ function Package() {
   )
 }
 
+/** Another qubit on the same feedline. A different number of meander turns means a different
+ *  resonator length, so a different readout frequency: that's how one line reads several qubits. */
+function ExtraQubit({ x0, turns }: { x0: number; turns: number }) {
+  const pts: [number, number][] = [[x0 - 4, -2.6], [x0 + 4, -2.6]]
+  let right = true
+  for (let i = 1; i <= turns; i++) {
+    const z = -2.6 - 1.6 * i
+    pts.push([right ? x0 + 4 : x0 - 4, z], [right ? x0 - 4 : x0 + 4, z])
+    right = !right
+  }
+  const zl = -2.6 - 1.6 * turns
+  pts.push([x0, zl], [x0, zl - 2.5])
+  const qz = zl - 5.4
+  return (
+    <group>
+      <Cpw pts={pts} wc={0.5} wg={1.1} />
+      <group position={[x0, 0, qz]}>
+        <Rect x={0} z={0} w={7.0} d={1.8} y={Y_GAP} mat={GAP} />
+        <Rect x={0} z={0} w={1.8} d={7.0} y={Y_GAP} mat={GAP} />
+        <Rect x={0} z={0} w={5.4} d={0.6} y={Y_TRACE} mat={FILM} h={0.012} />
+        <Rect x={0} z={0} w={0.6} d={5.4} y={Y_TRACE} mat={FILM} h={0.012} />
+        <mesh position={[0, 0.088, -3.1]}><boxGeometry args={[0.1, 0.02, 0.85]} /><meshStandardMaterial color="#e9e3d4" metalness={1} roughness={0.2} /></mesh>
+      </group>
+    </group>
+  )
+}
+
 // where the pulse travels: along the chip feedline, over a wire bond, along the board, into the connector
 const PATH_PTS: [number, number, number][] = [
   [-40, 0.3, 0], [0, 0.3, 0], [40, 0.3, 0], [44, 2.6, 0], [47.5, 4.1, 0], [51, 2.6, 0], [55, 0.6, 0], [100, 0.6, 0], [160, 0.6, 0], [178, 0.6, 0], [205, 0.6, 0],
@@ -102,10 +129,11 @@ export function StationQubit() {
     curve.getPointAt(Math.min(1, a / len), tmp.p)
     const s = 1 + Math.max(0, a - 44) / 22
     const chasePos = tmp.p.clone().add(new THREE.Vector3(-13, 9, 16).multiplyScalar(s))
-    const k0 = { pos: new THREE.Vector3(55, 90, 105), look: new THREE.Vector3(0, 0, -6) }
-    const k1 = { pos: new THREE.Vector3(7, 6.5, -8), look: new THREE.Vector3(0, 0, -16) }
-    tmp.pos.copy(k0.pos).lerp(k1.pos, seg(u, 0.12, 0.24)).lerp(chasePos, seg(u, 0.36, 0.47))
-    tmp.lk.copy(k0.look).lerp(k1.look, seg(u, 0.12, 0.24)).lerp(tmp.p, seg(u, 0.36, 0.47))
+    // open on the transmon itself (pads and junction), pull back to the whole chip, then pick up the pulse
+    const k0 = { pos: new THREE.Vector3(3.2, 4.4, -12.5 - 1.2 * seg(u, 0, 0.12)), look: new THREE.Vector3(0, 0, -17.4) }
+    const k1 = { pos: new THREE.Vector3(55, 90, 105), look: new THREE.Vector3(0, 0, -6) }
+    tmp.pos.copy(k0.pos).lerp(k1.pos, seg(u, 0.13, 0.28)).lerp(chasePos, seg(u, 0.34, 0.46))
+    tmp.lk.copy(k0.look).lerp(k1.look, seg(u, 0.13, 0.28)).lerp(tmp.p, seg(u, 0.34, 0.46))
     vis.current = Math.max(1, camera.position.distanceTo(look.current) / 22)
     if (!playing) return
     const k = 1 - Math.exp(-dt * 3)
@@ -118,9 +146,13 @@ export function StationQubit() {
     <group>
       <Chip pulseX={() => arcAt(usePath.getState().u) - RES_ARC} />
       <Package />
+      <ExtraQubit x0={-28} turns={3} />
+      <ExtraQubit x0={-14} turns={4} />
+      <ExtraQubit x0={16} turns={6} />
       <PulseTrail curve={curve} spec={ghost} color="#86b5e0" width={1.6} />
       <PulseTrail curve={curve} spec={spec} />
-      <Label pos={[0, 0.4, -12.8]}>Josephson junction (lower arm)</Label>
+      <Label pos={[0.6, 0.3, -19.1]}>Josephson junction</Label>
+      <Label pos={[-2.2, 0.3, -16]}>Capacitor pad</Label>
       <Label pos={[-5, 0.4, -6]}>Readout resonator</Label>
       <Label pos={[47, 5, 3]}>Wire bonds</Label>
       <Label pos={[185, 9, 0]}>SMA connector</Label>
@@ -130,8 +162,8 @@ export function StationQubit() {
 
 /** One line of narration for each part of the station. */
 export function captionQubit(u: number, qubit: 0 | 1) {
-  if (u < 0.16) return 'A qubit chip: aluminum circuits on silicon, about 9 mm across.'
-  if (u < 0.4) return 'Zooming into one transmon qubit. The tiny bridge on its lower arm is the Josephson junction.'
+  if (u < 0.14) return 'This is a transmon qubit. The cross is a capacitor pad, and the tiny bridge at the end of one arm is the Josephson junction.'
+  if (u < 0.4) return 'Pulling back: the qubit is one small piece of a chip about 9 mm across, patterned in aluminum on silicon.'
   if (u < 0.57) return 'A probe pulse comes down the feedline. The corkscrew’s radius is its amplitude, its twist is its phase.'
   if (u < 0.75) return `It passes the readout resonator and leaves twisted by ${qubit === 1 ? '+45°' : '−45°'}, because the qubit is in |${qubit}⟩. Dashed: the other state.`
   if (u < 0.88) return 'Off the chip, over aluminum wire bonds about 25 µm thick, onto the circuit board.'

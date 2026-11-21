@@ -7,6 +7,7 @@ import type { OrbitControls as OC } from 'three-stdlib'
 import * as THREE from 'three'
 import { usePath, STATIONS } from './state'
 import { StationQubit, captionQubit } from './StationQubit'
+import { StationAmp, captionAmp } from './StationAmp'
 import { Tex } from '../ui/Tex'
 import './path.css'
 
@@ -41,23 +42,24 @@ function LookAround() {
   return <OrbitControls makeDefault enableDamping enabled={false} minDistance={0.5} maxDistance={600} />
 }
 
-const BUILT = 1 // stations finished so far
+const BUILT = 2 // stations finished so far
 
 // test hook: jump the timeline (used by screenshot scripts)
-;(window as unknown as { __setU: (u: number) => void }).__setU = (u: number) => usePath.getState().set({ u })
+;(window as unknown as { __setU: (u: number, st?: number) => void }).__setU = (u: number, st?: number) => usePath.getState().set(st === undefined ? { u } : { u, station: st })
 
 export function Path() {
   const { station, u, playing, qubit, set, goStation } = usePath()
-  const caption = station === 0 ? captionQubit(u, qubit) : ''
+  const caption = station === 0 ? captionQubit(u, qubit) : station === 1 ? captionAmp(u) : ''
   return (
     <div className="path">
-      <Canvas flat dpr={[1, 1.75]} camera={{ position: [55, 90, 105], fov: 34, near: 0.05, far: 3000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
+      <Canvas flat dpr={[1, 1.75]} camera={{ position: [3.2, 4.4, -12.5], fov: 34, near: 0.05, far: 3000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
         <color attach="background" args={['#141519']} />
-        <hemisphereLight args={['#fff4e2', '#141519', 0.2]} />
-        <spotLight position={[-60, 160, 60]} angle={0.8} penumbra={1} intensity={3200} decay={2} color="#ffe8c6" />
+        <hemisphereLight args={["#fff4e2", "#141519", 0.32]} />
+        <spotLight position={[10, 220, -20]} angle={0.9} penumbra={1} intensity={1100} decay={2} color="#ffe8c6" />
         <directionalLight position={[120, 40, -120]} intensity={0.5} color="#9db7ff" />
-        <Environment files="/hdri/studio.hdr" environmentIntensity={0.25} />
+        <Environment files="/hdri/studio.hdr" environmentIntensity={0.2} environmentRotation={[0, Math.PI * 0.75, 0]} />
         {station === 0 && <StationQubit />}
+        {station === 1 && <StationAmp />}
         <Clock />
         <LookAround />
         <EffectComposer multisampling={4}>
@@ -67,6 +69,7 @@ export function Path() {
         </EffectComposer>
       </Canvas>
 
+      <div className="p-fade" key={'f' + station} />
       <div className="p-title">
         <span className="p-num">{station + 1}</span>
         <h1>{STATIONS[station].name}</h1>

@@ -5,11 +5,11 @@ import { useJourney } from './state'
 
 // 1 unit = 0.1 mm. Aluminum film on silicon, coplanar-waveguide layout:
 // a dark gap (bare silicon) on each side of every center conductor.
-const FILM = { color: '#8e887c', metalness: 0.85, roughness: 0.4 }
-const GAP = { color: '#1a1b23', metalness: 0.2, roughness: 0.5 }
-const Y_GROUND = 0.05, Y_GAP = 0.066, Y_TRACE = 0.078
+export const FILM = { color: '#8e887c', metalness: 0.85, roughness: 0.4 }
+export const GAP = { color: '#1a1b23', metalness: 0.2, roughness: 0.5 }
+export const Y_GROUND = 0.05, Y_GAP = 0.066, Y_TRACE = 0.078
 
-function Rect({ x, z, w, d, y, mat, h = 0.01 }: { x: number; z: number; w: number; d: number; y: number; mat: typeof FILM; h?: number }) {
+export function Rect({ x, z, w, d, y, mat, h = 0.01 }: { x: number; z: number; w: number; d: number; y: number; mat: typeof FILM; h?: number }) {
   return (
     <mesh position={[x, y, z]}>
       <boxGeometry args={[w, h, d]} />
@@ -19,7 +19,7 @@ function Rect({ x, z, w, d, y, mat, h = 0.01 }: { x: number; z: number; w: numbe
 }
 
 /** Axis-aligned CPW trace along a polyline: gap strip underneath, conductor on top. */
-function Cpw({ pts, wc, wg }: { pts: [number, number][]; wc: number; wg: number }) {
+export function Cpw({ pts, wc, wg }: { pts: [number, number][]; wc: number; wg: number }) {
   const segs = pts.slice(1).map((p, i) => {
     const [x1, z1] = pts[i], [x2, z2] = p
     const horiz = z1 === z2
@@ -78,8 +78,10 @@ export function Chip({ pulseX }: { pulseX?: () => number } = {}) {
         <Rect x={0} z={0} w={1.8} d={7.0} y={Y_GAP} mat={GAP} />
         <Rect x={0} z={0} w={5.4} d={0.6} y={Y_TRACE} mat={FILM} h={0.012} />
         <Rect x={0} z={0} w={0.6} d={5.4} y={Y_TRACE} mat={FILM} h={0.012} />
-        {/* Josephson junction bridging the bottom arm to ground (much too small to see at this scale) */}
-        <mesh position={[0, 0.09, 3.25]}><boxGeometry args={[0.12, 0.02, 0.5]} /><meshStandardMaterial color="#e8e2d2" metalness={1} roughness={0.2} /></mesh>
+        {/* Josephson junction: a thin aluminum bridge across the gap from the far arm's tip to ground.
+            Real junctions are ~0.2 µm; this is drawn ~10x wider so it's barely visible at this scale. */}
+        <mesh position={[0, 0.088, -3.1]}><boxGeometry args={[0.1, 0.02, 0.85]} /><meshStandardMaterial color="#e9e3d4" metalness={1} roughness={0.2} /></mesh>
+        <mesh position={[0, 0.095, -3.1]}><boxGeometry args={[0.28, 0.012, 0.1]} /><meshStandardMaterial color="#7fd6ff" metalness={0.3} roughness={0.3} emissive="#2a7fa8" emissiveIntensity={0.5} /></mesh>
       </group>
     </group>
   )

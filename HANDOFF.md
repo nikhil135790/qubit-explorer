@@ -18,6 +18,14 @@ Vite + React + TypeScript, Three.js via React Three Fiber and drei, @react-three
 - `src/ui/*`: instrument-panel UI (Overlay with intro and guided tour, Panels, Plot, Tex).
 - `verification/`: Python + QuTiP checks and the amplifier design script. All pass.
 
+## Current app (src/path, as of Nov 21 afternoon)
+"Follow the pulse": a timeline of 5 stations, camera on rails, pause to orbit/zoom.
+- Station 1 (StationQubit.tsx): opens on a transmon close-up (pad + junction), pulls back to a 4-qubit chip in its gold board, pulse rides the feedline, twists at the resonator, leaves over wire bonds into the SMA.
+- Station 2 (StationAmp.tsx): amp package, 3-resonator chip with Josephson ring, pump wave; pulse splits (direct + detour via c), recombines bigger; backward noise cancels and drains into c's resistor.
+- Stations 3 to 5 (isolator, HEMT, screen) still to build. `BUILT` in Path.tsx controls which are unlocked.
+- Pitch is Sunday Nov 22, 11 am.
+Earlier attempts kept for reference: src/scene + src/ui (6-level explorer), src/journey (captions), src/bench (chain builder).
+
 ## Done
 - Six levels with animated signals, guided tour, intro screen, LaTeX.
 - Pass 1 visuals: Poly Haven studio HDRI, bloom/AO/AgX tone mapping, instrument UI, larger type, adaptive quality.
