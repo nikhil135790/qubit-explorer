@@ -1,0 +1,68 @@
+import { useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+import { Rect, Cpw, GAP, Y_GROUND, Y_GAP, Y_TRACE } from '../journey/Chip'
+
+/**
+ * A 4-qubit chip in the style of Princeton (Houck / de Leon) tantalum devices:
+ * double-pad transmons with a single Al/AlOx junction, each capacitively coupled to its own
+ * quarter-wave readout resonator, all hanging off one shared feedline. Scene units: 1 = 0.1 mm.
+ * The resonators share one pattern; only the coupling elbow length differs slightly, which is
+ * what gives each one its own readout frequency.
+ */
+export const QX = [-30, -10, 10, 30] // qubit positions along the feedline
+export const MAIN = 2 // the qubit we follow
+export const MAIN_X = QX[MAIN]
+export const QZ = -16.1 // qubit center (pads straddle this line)
+const ELBOW = [3.8, 3.93, 4.07, 4.2]
+const TA = { color: '#9c968a', metalness: 0.85, roughness: 0.38 } // tantalum film
+
+function resonator(x0: number, e: number): [number, number][] {
+  return [
+    [x0 - e, -2.6], [x0 + e, -2.6], [x0 + e, -4.2], [x0 - 4, -4.2], [x0 - 4, -5.8], [x0 + 4, -5.8], [x0 + 4, -7.4],
+    [x0 - 4, -7.4], [x0 - 4, -9], [x0 + 4, -9], [x0 + 4, -10.6], [x0, -10.6], [x0, -13.1],
+  ]
+}
+
+/** Two 0.4 x 0.25 mm pads 20 µm apart, joined by a junction drawn a few µm wide (real: ~0.2 µm). */
+function Transmon({ x0 }: { x0: number }) {
+  const yJ = Y_TRACE + 0.006
+  return (
+    <group position={[x0, 0, QZ]}>
+      <Rect x={0} z={0} w={6} d={7.4} y={Y_GAP} mat={GAP} />
+      <Rect x={0} z={1.35} w={4} d={2.5} y={Y_TRACE} mat={TA} h={0.012} />
+      <Rect x={0} z={-1.35} w={4} d={2.5} y={Y_TRACE} mat={TA} h={0.012} />
+      {/* junction leads from each pad, overlapping in the middle through a thin oxide */}
+      <mesh position={[-0.05, yJ, 0.03]}><boxGeometry args={[0.03, 0.006, 0.17]} /><meshStandardMaterial color="#dcd6c8" metalness={1} roughness={0.25} /></mesh>
+      <mesh position={[0.05, yJ, -0.03]}><boxGeometry args={[0.03, 0.006, 0.17]} /><meshStandardMaterial color="#dcd6c8" metalness={1} roughness={0.25} /></mesh>
+      <mesh position={[0, yJ + 0.002, 0]}><boxGeometry args={[0.13, 0.006, 0.03]} /><meshStandardMaterial color="#dcd6c8" metalness={1} roughness={0.25} /></mesh>
+      <mesh position={[0, yJ + 0.004, 0]}><boxGeometry args={[0.035, 0.004, 0.035]} /><meshStandardMaterial color="#7fd6ff" emissive="#2a7fa8" emissiveIntensity={0.8} /></mesh>
+    </group>
+  )
+}
+
+export function ProcessorChip({ pulseX }: { pulseX: () => number }) {
+  // the followed qubit's resonator glows while the pulse is passing its coupling point
+  const glow = useRef<THREE.Group>(null)
+  useFrame(() => {
+    const c = pulseX()
+    const ring = Math.exp(-((c / 6) ** 2)) + (c > 0 ? 0.6 * Math.exp(-c / 14) : 0)
+    glow.current?.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined
+      if (m && m.emissive) m.emissiveIntensity = 0.9 * ring
+    })
+  })
+  return (
+    <group>
+      <mesh position={[0, -0.6, -6]}><boxGeometry args={[90, 1.2, 60]} /><meshStandardMaterial {...GAP} /></mesh>
+      <Rect x={0} z={-6} w={90} d={60} y={Y_GROUND} mat={TA} h={0.02} />
+      <Cpw pts={[[-45, 0], [45, 0]]} wc={1.0} wg={2.2} />
+      {QX.map((x0, i) => (
+        <group key={x0}>
+          {i === MAIN ? <group ref={glow}><Cpw pts={resonator(x0, ELBOW[i])} wc={0.5} wg={1.1} /></group> : <Cpw pts={resonator(x0, ELBOW[i])} wc={0.5} wg={1.1} />}
+          <Transmon x0={x0} />
+        </group>
+      ))}
+    </group>
+  )
+}

@@ -98,8 +98,8 @@ function PumpWave() {
   const N = 160
   const buf = useMemo(() => new Float32Array(N * 3), [])
   const init = useMemo(() => Array.from({ length: N }, () => [0, 0, 0] as [number, number, number]), [])
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime()
+  useFrame(() => {
+    const t = usePath.getState().time // freezes when paused
     for (let i = 0; i < N; i++) {
       const z = 95 - (i / (N - 1)) * (95 - 4.6)
       const ph = z * 1.6 + t * 9
@@ -173,7 +173,7 @@ export function StationAmp() {
   const look = useRef(new THREE.Vector3(0, 0, 0))
   const tmp = useMemo(() => ({ p: new THREE.Vector3(), pos: new THREE.Vector3(), lk: new THREE.Vector3() }), [])
   useFrame((_, dt) => {
-    const { u, playing } = usePath.getState()
+    const { u, paused, orbiting } = usePath.getState()
     const a = Math.max(0, Math.min(L.fwd, fwdArc(u)))
     fwd.getPointAt(a / L.fwd, tmp.p)
     const chase = tmp.p.clone().add(new THREE.Vector3(-9, 11, 15).multiplyScalar(1 + 1.5 * seg(u, 0.44, 0.56)))
@@ -186,7 +186,7 @@ export function StationAmp() {
     tmp.pos.copy(K[0].pos).lerp(K[1].pos, seg(u, 0.06, 0.2)).lerp(K[2].pos, seg(u, 0.5, 0.6)).lerp(K[3].pos, seg(u, 0.86, 0.98))
     tmp.lk.copy(K[0].look).lerp(K[1].look, seg(u, 0.06, 0.2)).lerp(K[2].look, seg(u, 0.5, 0.6)).lerp(K[3].look, seg(u, 0.86, 0.98))
     vis.current = Math.max(1, camera.position.distanceTo(look.current) / 24)
-    if (!playing) return
+    if (paused || orbiting) return
     const k = 1 - Math.exp(-dt * 3)
     camera.position.lerp(tmp.pos, k)
     look.current.lerp(tmp.lk, k)
@@ -210,14 +210,4 @@ export function StationAmp() {
       <Label pos={[2, 1, 30]}>Pump tones</Label>
     </group>
   )
-}
-
-export function captionAmp(u: number) {
-  if (u < 0.12) return 'The directional amplifier: a 5 mm chip in its own copper box. Purple is the pump tone powering it.'
-  if (u < 0.3) return 'The pulse enters mode $a$, the side that faces the qubit.'
-  if (u < 0.42) return 'At the Josephson ring it splits: straight to $b$, or a detour through $c$.'
-  if (u < 0.58) return 'The two routes arrive in step and add up. It leaves $b$ with about 100 times the power (drawn smaller so it fits).'
-  if (u < 0.7) return 'Now noise from the 4 K amplifier arrives at $b$, heading back toward the qubit.'
-  if (u < 0.86) return 'Going backward, the two routes arrive out of step and cancel. What’s left drains into $c$’s resistor.'
-  return 'Out through the output connector, toward the isolator.'
 }
