@@ -170,7 +170,7 @@ function Roundabout() {
   const a = Math.PI - ((t * 1.2) % (2 * Math.PI))
   const ports: [number, string, string][] = [[180, '1', 'from the amplifier'], [60, '2', 'up to the HEMT'], [-60, '3', 'resistor']]
   return (
-    <Box title="A one-way roundabout" note="The magnet makes the ferrite steer microwaves around one way only. Anything entering a port leaves by the next one, so 1 goes to 2 and 2 goes to 3.">
+    <Box title="A one-way roundabout" note="The magnet's field $B$ makes the ferrite steer microwaves around one way only. Anything entering a port leaves by the next one, so 1 goes to 2 and 2 goes to 3.">
       <svg viewBox="-115 -85 230 170" width="220" height="163" aria-hidden>
         <circle r={42} fill="#1b1d23" stroke="#4a4e58" />
         {ports.map(([d, n, lbl]) => {
@@ -204,7 +204,51 @@ function ResistorBox() {
   )
 }
 
+// ---------- the HEMT ----------
+function WhatHemt() {
+  const t = useT()
+  const sig = (x0: number, y0: number, a: number, w: number) => { let d = ''; for (let i = 0; i <= 30; i++) { const x = x0 + (w * i) / 30; d += (i ? 'L' : 'M') + x.toFixed(1) + ',' + (y0 - a * Math.sin(i * 0.6 - t * 6)).toFixed(1) } return d }
+  return (
+    <Box title="What a HEMT is" note="A tiny signal on the gate controls a much bigger current flowing through a sheet of electrons only a few nanometers thick, so the current carries a bigger copy of the signal. Cooling it to 4 K calms the electrons' random jiggling, which is where its noise comes from.">
+      <svg viewBox="0 0 230 140" width="220" height="134" aria-hidden>
+        <rect x={10} y={62} width={210} height={30} fill="#2a2c33" />
+        <rect x={10} y={92} width={210} height={34} fill="#1d1f25" />
+        <line x1={10} y1={92} x2={220} y2={92} stroke="#9fd3ff" strokeWidth={2.5} />
+        <text x={14} y={120} className="d-ref">electron sheet</text>
+        {[[14, 'source'], [96, 'gate'], [178, 'drain']].map(([x, n]) => (
+          <g key={n as string}><rect x={x as number} y={n === 'gate' ? 48 : 52} width={38} height={n === 'gate' ? 14 : 10} fill={GOLD} opacity={0.9} /><text x={(x as number) + 19} y={44} textAnchor="middle" className="d-ref">{n}</text></g>
+        ))}
+        <path d={sig(96, 24, 2.5, 38)} stroke={GOLD} strokeWidth={1.4} fill="none" />
+        <text x={58} y={28} className="d-ref">small in</text>
+        <path d={sig(178, 18, 9, 44)} stroke={GOLD} strokeWidth={2} fill="none" />
+        <text x={176} y={136} className="d-ref">big out</text>
+        <path d="M40,100 L190,100" stroke="#9fd3ff" strokeWidth={1} strokeDasharray="3 4" />
+      </svg>
+    </Box>
+  )
+}
+
+function QuietFirst() {
+  const bars: [string, number, string][] = [['HEMT first', 12.5, RED], ['Directional amplifier first', 1.1, GOLD]]
+  return (
+    <Box title="Why the quiet amplifier goes first" note="Noise added after a gain of 100 counts 100 times less, so with the directional amplifier in front, the HEMT's dozen photons of noise shrink to about a tenth of one.">
+      <svg viewBox="0 0 230 110" width="220" height="105" aria-hidden>
+        <text x={10} y={12} className="d-ref">noise in the final reading, in photons</text>
+        {bars.map(([n, v, c], i) => (
+          <g key={n}>
+            <text x={10} y={36 + i * 40} className="d-ref" fill={INK}>{n}</text>
+            <rect x={10} y={42 + i * 40} width={(v / 12.5) * 180} height={12} fill={c} opacity={0.85} />
+            <text x={16 + (v / 12.5) * 180} y={52 + i * 40} className="d-ref">{v}</text>
+          </g>
+        ))}
+      </svg>
+    </Box>
+  )
+}
+
 const ASIDES: Record<string, () => ReactNode> = {
+  '3-1': () => <WhatHemt />,
+  '3-3': () => <QuietFirst />,
   '0-6': () => <TwistBox />,
   '1-1': () => <WhyAmplify />,
   '1-3': () => <TwoRoutes />,

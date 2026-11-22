@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Line } from '@react-three/drei'
+import { Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { READOUT_PHASE } from '../journey/state'
 import { Label } from '../scene/common'
@@ -21,7 +21,6 @@ import type { Shot } from './rig'
 export const ISO = new THREE.Vector3(1400, 20, 0) // centre of the puck, at stripline height
 const R_BODY = 130
 const LIFTED: [number, number, number] = [ISO.x - 215, ISO.y + 30, ISO.z - 95]
-const TOP = 12115 + 180 // where the lines leave through the top flange
 
 const ang = (deg: number, r: number, y = ISO.y): [number, number, number] =>
   [ISO.x + r * Math.cos((deg * Math.PI) / 180), y, ISO.z + r * Math.sin((deg * Math.PI) / 180)]
@@ -37,7 +36,7 @@ const NOISE: [number, number, number][] = [
   [1534, 380, 226], [1534, 300, 226], [1534, 90, 226], [1530, 45, 222], ang(60, 215), ang(60, 175), ang(60, 130),
   ang(60, 70), ang(40, 48), ang(0, 45), ang(-40, 48), ang(-60, 70), ang(-60, 104),
 ]
-const LINE_OUT: [number, number, number][] = [...FWD.slice(12, 17), [1534, TOP, 226]]
+const LINE_OUT: [number, number, number][] = [...FWD.slice(12, 17), [1534, 6262, 226]] // up to the 4 K plate, where the HEMT sits
 const COAX_IN: [number, number, number][] = [...FWD.slice(0, 5)]
 
 const v3 = (p: [number, number, number][]) => new THREE.CatmullRomCurve3(p.map((q) => new THREE.Vector3(...q)), false, 'centripetal')
@@ -82,6 +81,29 @@ function Port({ deg }: { deg: number }) {
   )
 }
 
+/** A curved arrow on the ferrite, from angle d0 to d1 (degrees): the way the waves get steered. */
+function Turn({ d0, d1 }: { d0: number; d1: number }) {
+  const pts = Array.from({ length: 24 }, (_, i) => ang(d0 + ((d1 - d0) * i) / 23, 80, ISO.y + 2))
+  const end = new THREE.Vector3(...pts[23]), prev = new THREE.Vector3(...pts[21])
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(prev).normalize())
+  return (
+    <group>
+      <Line points={pts} color="#f3dcae" lineWidth={2} transparent opacity={0.85} />
+      <mesh position={end} quaternion={q}><coneGeometry args={[5, 13, 12]} /><meshBasicMaterial color="#f3dcae" /></mesh>
+    </group>
+  )
+}
+
+/** A short upward arrow for the magnetic field. */
+function FieldArrow({ at }: { at: [number, number, number] }) {
+  return (
+    <group position={at}>
+      <mesh position={[0, 18, 0]}><cylinderGeometry args={[1.6, 1.6, 36, 8]} /><meshBasicMaterial color="#9fb7ff" /></mesh>
+      <mesh position={[0, 40, 0]}><coneGeometry args={[5, 12, 12]} /><meshBasicMaterial color="#9fb7ff" /></mesh>
+    </group>
+  )
+}
+
 export function Isolator({ glow, closed }: { glow?: React.RefObject<THREE.MeshStandardMaterial | null>; closed?: boolean }) {
   const y = ISO.y
   return (
@@ -114,14 +136,18 @@ export function Isolator({ glow, closed }: { glow?: React.RefObject<THREE.MeshSt
         </group>) })}
       <Port deg={180} />
       <Port deg={60} />
+      {!closed && <>
+        {/* which way the magnetised ferrite steers waves around: 1 to 2 to 3 */}
+        {[[165, 78], [45, -42], [-75, -162]].map(([d0, d1]) => <Turn key={d0} d0={d0} d1={d1} />)}
+        {/* the magnet's field B points straight up through the ferrite */}
+        {[100, 220, 340].map((d) => <FieldArrow key={d} at={ang(d, 58, y + 2)} />)}
+      </>}
       {closed && <mesh position={[ISO.x, y + 45, ISO.z]}><cylinderGeometry args={[R_BODY, R_BODY, 5, 64]} /><meshStandardMaterial {...GOLD} /></mesh>}
       {/* the top ferrite disk and magnet, lifted off and set to one side so the inside shows */}
       {!closed && <><group position={LIFTED}>
         <mesh position={[0, 0, 0]}><cylinderGeometry args={[105, 105, 14, 48]} /><meshStandardMaterial color="#26262a" roughness={0.85} /></mesh>
         <mesh position={[0, 18, 0]}><cylinderGeometry args={[95, 95, 18, 48]} /><meshStandardMaterial color="#9ea1a8" metalness={0.9} roughness={0.35} /></mesh>
-      </group>
-      <Line points={[[ISO.x - 60, y + 46, ISO.z - 90], [LIFTED[0] - 60, LIFTED[1] - 8, LIFTED[2] + 60]]} color="#8d877b" lineWidth={1} dashed dashSize={6} gapSize={5} />
-      <Line points={[[ISO.x + 60, y + 46, ISO.z - 90], [LIFTED[0] + 60, LIFTED[1] - 8, LIFTED[2] + 60]]} color="#8d877b" lineWidth={1} dashed dashSize={6} gapSize={5} /></>}
+      </group></>}
     </group>
   )
 }
@@ -214,9 +240,11 @@ export function StationIso() {
         <Label open pos={[ISO.x, 75, ISO.z]}>Isolator</Label>
         <Label open pos={[1120, 30, 2]}>Coax cable</Label>
       </>}
+      {usePath.getState().station === 2 && beat >= 0 && <Html position={ang(100, 58, ISO.y + 54)} center zIndexRange={[9, 0]}><span className="b-tag">B</span></Html>}
       {beat === 1 && <>
         <Label open pos={[LIFTED[0] + 105, LIFTED[1] + 20, LIFTED[2]]}>Magnet, lifted off</Label>
         <Label open pos={ang(150, 95, ISO.y + 4)}>Ferrite disk</Label>
+        <Label open pos={ang(-20, 86, ISO.y + 4)}>Steering direction</Label>
       </>}
       {beat === 2 && <>
         <Label open pos={ang(180, 185)}>Port 1</Label>

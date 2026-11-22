@@ -53,3 +53,4 @@
 .p-dial .d-pair figure { margin: 0; text-align: center; }
 .p-dial .d-pair figcaption { font-size: 0.85rem; color: #8d877b; font-style: italic; margin-top: -6px; }
 .p-dial { width: 270px; }
+.b-tag { font-family: 'Newsreader', serif; font-style: italic; font-weight: 600; font-size: 20px; color: #b9caff; text-shadow: 0 1px 8px rgba(0,0,0,.9); pointer-events: none; }

@@ -9,6 +9,7 @@ import { usePath, STATIONS, BUILT, beatRunning } from './state'
 import { StationQubit } from './StationQubit'
 import { StationAmp } from './StationAmp'
 import { StationIso } from './StationIso'
+import { StationHemt } from './StationHemt'
 import { Aside } from './Asides'
 import { OtherChains } from './OtherChains'
 import { Fridge, OurLines } from './Fridge'
@@ -118,6 +119,7 @@ const World = memo(function World() {
       <StationQubit />
       <StationAmp />
       <StationIso />
+      <StationHemt />
       <Clock />
       <LookAround />
       <ScaleRig />

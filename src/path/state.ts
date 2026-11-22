@@ -43,11 +43,19 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
       { u: 1, dur: 6, caption: 'Now amplified and shielded from backward noise, the pulse climbs the fridge toward the HEMT amplifier on the 4 K plate.' },
     ],
   },
-  { id: 'hemt', name: 'HEMT at 4 K', beats: [{ u: 1, dur: 4, caption: '' }] },
+  {
+    id: 'hemt', name: 'HEMT at 4 K', beats: [
+      { u: 0.2, dur: 8, title: 'Up to 4 K', caption: 'The pulse climbs past the cold plate and the still plate on a superconducting cable, which wastes almost none of it, up to the 4 K plate.' },
+      { u: 0.35, dur: 6, title: 'The HEMT', caption: 'Here sits the HEMT, short for high electron mobility transistor, an amplifier that works best when cooled to 4 K.' },
+      { u: 0.6, dur: 8, caption: 'Inside, three transistors in a row boost the pulse about 10,000 times in power, so nothing further up can add noise that matters.' },
+      { u: 0.8, dur: 6, caption: 'The catch is that the transistors add noise worth about a dozen photons, and the part heading back down is the backward noise we blocked earlier.' },
+      { u: 1, dur: 7, title: 'To room temperature', caption: 'Now strong enough to survive the trip, the pulse heads up to room temperature, where the electronics read its twist.' },
+    ],
+  },
   { id: 'screen', name: 'The screen', beats: [{ u: 1, dur: 4, caption: '' }] },
 ]
 
-export const BUILT = 3 // stations finished so far
+export const BUILT = 4 // stations finished so far
 
 /** Station 1 opens on the fridge and the plate; from u = INTRO on, v runs 0..1 over the chip part. */
 export const INTRO = 0.2
