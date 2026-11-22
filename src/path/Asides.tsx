@@ -205,48 +205,113 @@ function ResistorBox() {
 }
 
 // ---------- the HEMT ----------
+/** One transistor, cut open: electrons stream from source to drain, and the gate squeezes the stream. */
 function WhatHemt() {
   const t = useT()
-  const sig = (x0: number, y0: number, a: number, w: number) => { let d = ''; for (let i = 0; i <= 30; i++) { const x = x0 + (w * i) / 30; d += (i ? 'L' : 'M') + x.toFixed(1) + ',' + (y0 - a * Math.sin(i * 0.6 - t * 6)).toFixed(1) } return d }
+  const g = (x: number) => Math.sin(x * 0.09 - t * 5) // the signal, travelling with the electrons
+  // electrons in the sheet: denser where the gate let more through
+  const dots = Array.from({ length: 46 }, (_, i) => {
+    const x = 30 + ((i * 37 + t * 60) % 170)
+    const keep = hash(i) < 0.55 + 0.4 * g(x)
+    return keep ? <circle key={i} cx={x} cy={96 + (hash(i + 77) - 0.5) * 3} r={1.8} fill="#9fd3ff" /> : null
+  })
+  const wave = (x0: number, y0: number, amp: number, w: number) => { let d = ''; for (let i = 0; i <= 30; i++) { const x = x0 + (w * i) / 30; d += (i ? 'L' : 'M') + x.toFixed(1) + ',' + (y0 - amp * Math.sin(i * 0.6 - t * 6)).toFixed(1) } return d }
   return (
-    <Box title="What a HEMT is" note="A tiny signal on the gate controls a much bigger current flowing through a sheet of electrons only a few nanometers thick, so the current carries a bigger copy of the signal. Cooling it to 4 K calms the electrons' random jiggling, which is where its noise comes from.">
-      <svg viewBox="0 0 230 140" width="220" height="134" aria-hidden>
-        <rect x={10} y={62} width={210} height={30} fill="#2a2c33" />
-        <rect x={10} y={92} width={210} height={34} fill="#1d1f25" />
-        <line x1={10} y1={92} x2={220} y2={92} stroke="#9fd3ff" strokeWidth={2.5} />
-        <text x={14} y={120} className="d-ref">electron sheet</text>
-        {[[14, 'source'], [96, 'gate'], [178, 'drain']].map(([x, n]) => (
-          <g key={n as string}><rect x={x as number} y={n === 'gate' ? 48 : 52} width={38} height={n === 'gate' ? 14 : 10} fill={GOLD} opacity={0.9} /><text x={(x as number) + 19} y={44} textAnchor="middle" className="d-ref">{n}</text></g>
+    <Box title="Inside one transistor" note="Each of the three chips is one transistor with three contacts. Electrons stream from source to drain through a sheet only a few nanometers thick, and a tiny wave on the gate squeezes and opens that stream, so the current coming out carries a much bigger copy of the wave.">
+      <svg viewBox="0 0 230 150" width="220" height="143" aria-hidden>
+        <text x={4} y={78} className="d-ref">top layer</text>
+        <rect x={10} y={82} width={210} height={12} fill="#2f323a" />
+        <rect x={10} y={99} width={210} height={30} fill="#1d1f25" />
+        <text x={4} y={142} className="d-ref">bottom layer</text>
+        <line x1={10} y1={96.5} x2={220} y2={96.5} stroke="#9fd3ff" strokeOpacity={0.25} strokeWidth={5} />
+        {dots}
+        {([[12, 'source'], [96, 'gate'], [180, 'drain']] as const).map(([x, n]) => (
+          <g key={n}><rect x={x} y={n === 'gate' ? 66 : 70} width={38} height={n === 'gate' ? 16 : 12} fill={GOLD} opacity={0.9} /><text x={x + 19} y={62} textAnchor="middle" className="d-ref">{n}</text></g>
         ))}
-        <path d={sig(96, 24, 2.5, 38)} stroke={GOLD} strokeWidth={1.4} fill="none" />
-        <text x={58} y={28} className="d-ref">small in</text>
-        <path d={sig(178, 18, 9, 44)} stroke={GOLD} strokeWidth={2} fill="none" />
-        <text x={176} y={136} className="d-ref">big out</text>
-        <path d="M40,100 L190,100" stroke="#9fd3ff" strokeWidth={1} strokeDasharray="3 4" />
+        <path d={wave(98, 40, 2.5, 34)} stroke={GOLD} strokeWidth={1.4} fill="none" />
+        <text x={96} y={28} className="d-ref">small wave in</text>
+        <path d={wave(180, 36, 10, 40)} stroke={GOLD} strokeWidth={2} fill="none" />
+        <text x={168} y={16} className="d-ref">big copy out</text>
+        <text x={60} y={118} className="d-ref" fill="#9fd3ff">electron sheet</text>
       </svg>
     </Box>
   )
 }
 
+/** Signal and noise, in photons, before and after the directional amplifier, when the HEMT adds its 12. */
 function QuietFirst() {
-  const bars: [string, number, string][] = [['HEMT first', 12.5, RED], ['Directional amplifier first', 1.1, GOLD]]
+  // numbers from our model: pulse ~4 photons, unavoidable quantum noise 0.5, directional amp adds 0.5, gain 100, HEMT adds ~12
+  const rows: { name: string; sig: number; early: number; hemt: number }[] = [
+    { name: 'HEMT alone', sig: 4, early: 0.5, hemt: 12 },
+    { name: 'Directional amplifier, then HEMT', sig: 400, early: 100, hemt: 12 },
+  ]
   return (
-    <Box title="Why the quiet amplifier goes first" note="Noise added after a gain of 100 counts 100 times less, so with the directional amplifier in front, the HEMT's dozen photons of noise shrink to about a tenth of one.">
-      <svg viewBox="0 0 230 110" width="220" height="105" aria-hidden>
-        <text x={10} y={12} className="d-ref">noise in the final reading, in photons</text>
-        {bars.map(([n, v, c], i) => (
-          <g key={n}>
-            <text x={10} y={36 + i * 40} className="d-ref" fill={INK}>{n}</text>
-            <rect x={10} y={42 + i * 40} width={(v / 12.5) * 180} height={12} fill={c} opacity={0.85} />
-            <text x={16 + (v / 12.5) * 180} y={52 + i * 40} className="d-ref">{v}</text>
-          </g>
-        ))}
+    <Box title="Why the order matters" note="Photon counts measure energy, so 4 photons of signal means the pulse carries the energy of about 4 microwave photons, and 12 photons of noise means the HEMT adds random energy worth about 12. Boost the pulse 100 times first and the HEMT's 12 is small next to it.">
+      <svg viewBox="0 0 230 128" width="220" height="122" aria-hidden>
+        {rows.map((r, i) => {
+          const noise = r.early + r.hemt
+          const max = Math.max(r.sig, noise) * 1.15, W = 200 // each row drawn to its own scale
+          const y = 8 + i * 60
+          return (
+            <g key={r.name}>
+              <text x={10} y={y + 8} className="d-ref" fill={INK}>{r.name}</text>
+              <rect x={10} y={y + 14} width={(r.sig / max) * W} height={10} fill={GOLD} />
+              <text x={14 + (r.sig / max) * W} y={y + 23} className="d-ref">{'signal ' + r.sig}</text>
+              <rect x={10} y={y + 28} width={Math.max(2, (r.early / max) * W)} height={10} fill="#8d877b" />
+              <rect x={10 + Math.max(2, (r.early / max) * W)} y={y + 28} width={Math.min(W, (r.hemt / max) * W)} height={10} fill={RED} />
+              <text x={14 + Math.min(W, (noise / max) * W)} y={y + 37} className="d-ref">{'noise ' + noise}</text>
+            </g>
+          )
+        })}
       </svg>
+      <div className="d-key"><i style={{ background: '#8d877b' }} />quantum noise, amplified with the pulse <i style={{ background: RED }} />HEMT noise</div>
+    </Box>
+  )
+}
+
+// ---------- the screen ----------
+function MixerBox() {
+  const box = (x: number, y: number, w: number, label: string, c = '#4a4e58') => (
+    <g><rect x={x} y={y} width={w} height={22} rx={3} fill="#1b1d23" stroke={c} /><text x={x + w / 2} y={y + 15} textAnchor="middle" className="d-ref" fill={INK}>{label}</text></g>
+  )
+  return (
+    <Box title="Comparing with the reference" note="The generator's tone is split in two. One half goes down to the qubit and comes back twisted, the other half stays here as the reference, and the mixer measures the twist between them as $I$ and $Q$.">
+      <svg viewBox="0 0 230 150" width="220" height="143" aria-hidden>
+        {box(8, 8, 100, 'generator')}
+        {box(130, 8, 92, 'down to qubit', '#6b7280')}
+        <line x1={108} y1={19} x2={130} y2={19} stroke={GOLD} strokeWidth={1.6} />
+        <line x1={58} y1={30} x2={58} y2={74} stroke={GOLD} strokeWidth={1.6} strokeDasharray="4 3" />
+        <text x={62} y={56} className="d-ref">reference</text>
+        {box(130, 48, 92, 'back, twisted', '#6b7280')}
+        <line x1={176} y1={70} x2={176} y2={78} stroke={GOLD} strokeWidth={1.6} />
+        <path d="M58,74 L58,90 L110,90" stroke={GOLD} strokeWidth={1.6} fill="none" strokeDasharray="4 3" />
+        <path d="M176,78 L176,90 L150,90" stroke={GOLD} strokeWidth={1.6} fill="none" />
+        {box(110, 80, 40, 'mixer', GOLD)}
+        <line x1={130} y1={102} x2={130} y2={116} stroke={INK} />
+        {box(80, 116, 100, 'I and Q')}
+      </svg>
+    </Box>
+  )
+}
+
+function WithWithout() {
+  const withAmp = usePath((s) => s.withAmp)
+  const set = usePath((s) => s.set)
+  return (
+    <Box title="Try it without the amplifier" note={withAmp
+      ? 'With the directional amplifier first in line, the clouds sit far apart and 99.7% of 0.4 microsecond readings are right.'
+      : 'Without it, the HEMT\'s noise blurs the clouds into each other, and the same measurement is right only 86.6% of the time.'}>
+      <div className="d-toggle">
+        <button className={withAmp ? 'on' : ''} onClick={() => set({ withAmp: true })}>With directional amplifier</button>
+        <button className={!withAmp ? 'on' : ''} onClick={() => set({ withAmp: false })}>Without</button>
+      </div>
     </Box>
   )
 }
 
 const ASIDES: Record<string, () => ReactNode> = {
+  '4-1': () => <MixerBox />,
+  '4-3': () => <WithWithout />,
   '3-1': () => <WhatHemt />,
   '3-3': () => <QuietFirst />,
   '0-6': () => <TwistBox />,

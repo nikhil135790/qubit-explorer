@@ -10,6 +10,7 @@ import { StationQubit } from './StationQubit'
 import { StationAmp } from './StationAmp'
 import { StationIso } from './StationIso'
 import { StationHemt } from './StationHemt'
+import { StationScreen } from './StationScreen'
 import { Aside } from './Asides'
 import { OtherChains } from './OtherChains'
 import { Fridge, OurLines } from './Fridge'
@@ -27,6 +28,7 @@ function Clock() {
     const patch: { time: number; u?: number } = { time: st.time + d }
     if (st.u < beat.u) patch.u = Math.min(beat.u, st.u + ((beat.u - st.from) / beat.dur) * d)
     st.set(patch)
+    if (beat.auto && (patch.u ?? st.u) >= beat.u) st.next()
   })
   return null
 }
@@ -120,6 +122,7 @@ const World = memo(function World() {
       <StationAmp />
       <StationIso />
       <StationHemt />
+      <StationScreen />
       <Clock />
       <LookAround />
       <ScaleRig />

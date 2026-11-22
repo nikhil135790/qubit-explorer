@@ -26,18 +26,21 @@ const ang = (deg: number, r: number, y = ISO.y): [number, number, number] =>
   [ISO.x + r * Math.cos((deg * Math.PI) / 180), y, ISO.z + r * Math.sin((deg * Math.PI) / 180)]
 
 // the pulse: out of the amplifier box, along a short coax, in port 1, round the ferrite, out port 2, up the fridge
-const FWD: [number, number, number][] = [
+// it starts on the amplifier chip, right after mode b, and leaves through the amplifier's output connector
+const AMP_PART: [number, number, number][] = [[904, 0.3, 4], [912, 0.3, 4], [923.6, 0.3, 4], [925.5, 3.2, 4], [927.5, 2.4, 4], [930, 0.6, 4], [960, 0.6, 4], [992, 0.6, 4]]
+const REST: [number, number, number][] = [
   [1003, 0.6, 4], [1060, 0.6, 4], [1120, 12, 2], [1180, 20, 0], ang(180, 175), ang(180, 130), ang(180, 70),
   ang(160, 48), ang(120, 45), ang(80, 48), ang(60, 70), ang(60, 130), ang(60, 175), ang(60, 215),
   [1530, 45, 222], [1534, 90, 226], [1534, 300, 226], [1534, 1300, 226],
 ]
+const FWD = [...AMP_PART, ...REST]
 // noise from the HEMT: down the output line, in port 2, round to port 3, into the resistor
 const NOISE: [number, number, number][] = [
   [1534, 380, 226], [1534, 300, 226], [1534, 90, 226], [1530, 45, 222], ang(60, 215), ang(60, 175), ang(60, 130),
   ang(60, 70), ang(40, 48), ang(0, 45), ang(-40, 48), ang(-60, 70), ang(-60, 104),
 ]
-const LINE_OUT: [number, number, number][] = [...FWD.slice(12, 17), [1534, 6262, 226]] // up to the 4 K plate, where the HEMT sits
-const COAX_IN: [number, number, number][] = [...FWD.slice(0, 5)]
+const LINE_OUT: [number, number, number][] = [...REST.slice(12, 17), [1534, 6262, 226]] // up to the 4 K plate, where the HEMT sits
+const COAX_IN: [number, number, number][] = [...REST.slice(0, 5)]
 
 const v3 = (p: [number, number, number][]) => new THREE.CatmullRomCurve3(p.map((q) => new THREE.Vector3(...q)), false, 'centripetal')
 
@@ -171,6 +174,8 @@ export function StationIso() {
     port1: arcNear(fwd, ang(180, 175)), exit: arcNear(fwd, ang(60, 215)),
     resistor: arcNear(noise, ang(-60, 85)),
     inF: insideTable(fwd), inN: insideTable(noise),
+    ampEnd: arcNear(fwd, [1003, 0.6, 4]),
+    onAmp: (() => { const pts = fwd.getSpacedPoints(800), len = fwd.getLength(); const k = pts.map((p) => 1 - THREE.MathUtils.smoothstep(p.x, 984, 996)); return (a: number) => k[Math.max(0, Math.min(800, Math.round((a / len) * 800)))] })(),
   }), [fwd, noise])
 
   // where the pulse is: along the coax to port 1, waits there while we look inside, crosses, then climbs
@@ -187,9 +192,19 @@ export function StationIso() {
   const specs = useMemo(() => {
     // the field spreads out in the ferrite, and fits snugly inside the coax and connectors
     const big = () => Math.min(26, Math.max(7, vis.current * 1.4))
+    // on the amplifier chip the spiral is drawn tight, as in the amplifier station; from its connector on, long
+    const ampSpec: TrailSpec = {
+      center: () => { const a = fwdArc(stationU()); return a > -999 && a < L.ampEnd ? a : -999 },
+      width: 4, pitch: 3.2,
+      lift: (a) => L.onAmp(a) * Math.min(26, vis.current * 2.2) * 1.05,
+      radius: (a) => { const m = L.onAmp(a); return 6 * (1 - m) + Math.min(26, vis.current * 2.2) * m },
+      twist: () => READOUT_PHASE[usePath.getState().qubit],
+    }
     const fwdSpec: TrailSpec = {
-      center: () => fwdArc(stationU()), width: 26, pitch: 22, lift: () => 0,
-      radius: (a) => { const k = L.inF(a); return 6 * (1 - k) + big() * k },
+      center: () => { const a = fwdArc(stationU()); return a >= L.ampEnd ? a : -999 }, width: 26, pitch: 22,
+      // on the amplifier chip and board the field rides above the trace; in connectors and coax it fits inside
+      lift: (a) => L.onAmp(a) * Math.min(26, vis.current * 2.2) * 1.05,
+      radius: (a) => { const k = L.inF(a), m = L.onAmp(a); return (6 * (1 - k) + big() * k) * (1 - m) + Math.min(26, vis.current * 2.2) * m },
       twist: () => READOUT_PHASE[usePath.getState().qubit],
     }
     const noiseSpec: TrailSpec = {
@@ -197,14 +212,14 @@ export function StationIso() {
       radius: (a) => { const k = L.inN(a); const r = 6 * (1 - k) + big() * 0.9 * k; return r * Math.exp(-Math.max(0, a - L.resistor) / 10) },
       twist: () => 0, fuzz: () => 0.9,
     }
-    return { fwdSpec, noiseSpec }
+    return { fwdSpec, noiseSpec, ampSpec }
   }, [L])
 
   const tmp = useMemo(() => ({ p: new THREE.Vector3(), a: shot(), b: shot() }), [])
   const K = useMemo(() => {
     const wl = new THREE.Vector3(1380, 0, 60), il = ISO.clone().add(new THREE.Vector3(30, 0, 10))
     return {
-      start: { pos: new THREE.Vector3(1075, 70, 110), look: new THREE.Vector3(992, 0, 4) } as Shot,
+      start: { pos: new THREE.Vector3(910, 36, 34), look: new THREE.Vector3(901, 0, -2) } as Shot, // where the amplifier station ends
       wide: { look: wl, pos: wl.clone().addScaledVector(new THREE.Vector3(0.25, 0.8, 1).normalize(), 950) } as Shot,
       inside: { look: il, pos: il.clone().addScaledVector(new THREE.Vector3(0.15, 1.6, 1).normalize(), 560) } as Shot,
     }
@@ -214,7 +229,15 @@ export function StationIso() {
     // resistor warms (glows) while it absorbs the noise
     if (glow.current) { const a = noiseArc(u); glow.current.emissiveIntensity = a > L.resistor - 10 ? 1.6 * Math.exp(-Math.max(0, a - L.resistor) / 40) : 0 }
     let target: Shot
-    if (u < 0.15) target = blendShots(K.start, K.wide, seg(u, 0, 0.13), tmp.a)
+    if (u < 0.15) {
+      // follow the pulse off the amplifier chip and out of its box, then pull back to see the isolator
+      const a = Math.max(0, fwdArc(u))
+      fwd.getPointAt(Math.min(1, a / L.fwd), tmp.p)
+      const sc = 1 + 5 * THREE.MathUtils.smoothstep(a, 0, L.ampEnd)
+      const ch: Shot = { look: tmp.p.clone(), pos: tmp.p.clone().add(new THREE.Vector3(-9, 11, 15).multiplyScalar(sc)) }
+      blendShots(K.start, ch, seg(u, 0, 0.025), tmp.b)
+      target = blendShots(tmp.b, K.wide, seg(u, 0.075, 0.145), tmp.a)
+    }
     else if (u < 0.85) target = zoomShot(K.inside, K.wide, 1 - seg(u, 0.15, 0.28), tmp.a)
     else {
       // follow the pulse up the output line, watching from the side
@@ -234,6 +257,7 @@ export function StationIso() {
       <Tube curve={coaxIn} r={9} see />
       <Tube curve={lineOut} r={10} see />
       <Isolator glow={glow} />
+      <PulseTrail curve={fwd} spec={specs.ampSpec} />
       <PulseTrail curve={fwd} spec={specs.fwdSpec} />
       <PulseTrail curve={noise} spec={specs.noiseSpec} color="#ff5a64" width={2.2} />
       {beat === 0 && <>

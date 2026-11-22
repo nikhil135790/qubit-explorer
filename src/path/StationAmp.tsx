@@ -160,7 +160,7 @@ export function StationAmp() {
   const ndr = useMemo(() => v3(NOISE_DRAIN), [])
   const L = useMemo(() => ({
     fwd: fwd.getLength(), det: det.getLength(), nin: nin.getLength(), ndr: ndr.getLength(),
-    ringIn: arcAtX(fwd, -1.6), resB: arcAtX(fwd, 4), ringNoise: arcAtX(nin, 0), connIn: arcAtX(fwd, -80), connOut: arcAtX(fwd, 80),
+    ringIn: arcAtX(fwd, -1.6), resB: arcAtX(fwd, 4), ringNoise: arcAtX(nin, 0), connIn: arcAtX(fwd, -84), connOut: arcAtX(fwd, 84),
   }), [fwd, det, nin, ndr])
   const vis = useRef(1)
 
@@ -184,7 +184,7 @@ export function StationAmp() {
   const twist = () => READOUT_PHASE[usePath.getState().qubit]
   const specs = useMemo(() => {
     const inConn = (a: number) => {
-      const k1 = Math.max(0, Math.min(1, (L.connIn - a) / 12)), k2 = Math.max(0, Math.min(1, (a - L.connOut) / 12))
+      const k1 = Math.max(0, Math.min(1, (L.connIn - a) / 8)), k2 = Math.max(0, Math.min(1, (a - L.connOut) / 8))
       return Math.max(k1, k2)
     }
     const fwdR = (a: number) => vis.current * 0.9 * READOUT_AMP * (a < L.ringIn ? 1 : a < L.resB ? 1 + 2.5 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 3.5)

@@ -54,3 +54,8 @@
 .p-dial .d-pair figcaption { font-size: 0.85rem; color: #8d877b; font-style: italic; margin-top: -6px; }
 .p-dial { width: 270px; }
 .b-tag { font-family: 'Newsreader', serif; font-style: italic; font-weight: 600; font-size: 20px; color: #b9caff; text-shadow: 0 1px 8px rgba(0,0,0,.9); pointer-events: none; }
+.p-dial .d-key { font-size: 0.8rem; color: #8d877b; line-height: 1.5; }
+.p-dial .d-key i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 6px; vertical-align: middle; }
+.p-dial .d-toggle { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 2px; }
+.p-dial .d-toggle button { text-align: left; background: rgba(239,233,221,.06); border: 1px solid rgba(239,233,221,.18); border-radius: 4px; padding: 7px 10px; font-size: 0.98rem; color: #cfc8ba; cursor: pointer; }
+.p-dial .d-toggle button.on { border-color: #ffcf6e; color: #ffcf6e; background: rgba(255,207,110,.08); }

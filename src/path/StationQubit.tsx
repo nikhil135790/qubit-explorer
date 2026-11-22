@@ -105,7 +105,7 @@ export function StationQubit() {
   const inConn = useMemo(() => {
     const pts = curve.getSpacedPoints(1500)
     const at = (x: number) => (pts.findIndex((p) => p.x >= x) / 1500) * len
-    const a0 = at(160), a1 = at(180)
+    const a0 = at(175), a1 = at(185) // only inside the connector shell (it starts at x = 173)
     return (a: number) => Math.max(0, Math.min(1, (a - a0) / (a1 - a0)))
   }, [curve, len])
   const rad = (a: number) => { const r = vis.current * 1.1 * (a > RES_ARC ? READOUT_AMP : 1); const k = inConn(a); return r * (1 - k) + Math.min(r, 5) * k }

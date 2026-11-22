@@ -6,7 +6,7 @@ import { rig } from './rig'
  * progress u from where it is to the beat's end value over `dur` seconds, then waits for Next.
  * `time` is the shared animation clock: it only advances when not paused, so Pause freezes everything.
  */
-export type Beat = { u: number; dur: number; caption: string; title?: string }
+export type Beat = { u: number; dur: number; caption: string; title?: string; auto?: boolean } // auto: roll straight into the next step
 
 export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
   {
@@ -18,8 +18,7 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
       { u: 0.44, dur: 7, caption: 'The whole chip holds four qubits, each with its own zigzag readout resonator on a shared feedline.' },
       { u: 0.6, dur: 5.5, caption: 'We measure the qubit by sending a microwave pulse down the feedline, drawn here as a spiral showing its electric field.' },
       { u: 0.728, dur: 6, caption: 'Passing the resonator twists the pulse by $+45^\\circ$ if the qubit is 1 and $-45^\\circ$ if it is 0, so measuring the twist reads out the qubit.' },
-      { u: 0.88, dur: 5, caption: 'The pulse leaves the chip through thin aluminum wire bonds and travels onto the circuit board.' },
-      { u: 1, dur: 4, caption: 'It then passes through the connector on the side of the box, toward the directional amplifier.' },
+      { u: 1, dur: 9, auto: true, caption: 'The pulse leaves the chip over thin aluminum wire bonds, runs along the circuit board, and exits through the connector on the side of the box.' },
     ],
   },
   {
@@ -29,14 +28,13 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
       { u: 0.37, dur: 6, caption: 'The pulse enters through mode $a$, the side of the amplifier facing the qubit.' },
       { u: 0.478, dur: 5, caption: 'At the Josephson ring the pump feeds energy into the pulse, which then reaches mode $b$ by two routes at once, straight across and by a detour through $c$.' },
       { u: 0.622, dur: 5, caption: 'The two copies meet at $b$ in step, crest on crest, so they add up and the pulse leaves with about 100 times more power.' },
-      { u: 0.73, dur: 5, caption: 'Now follow the noise that comes back down the cable from the HEMT, a transistor amplifier higher up at 4 K, heading for our qubit.' },
+      { u: 0.73, dur: 5, caption: 'Now follow the faint noise that leaks back down from the HEMT, a transistor amplifier at 4 K, past the isolator we will meet next.' },
       { u: 0.874, dur: 6, caption: 'Going backward, the two copies of the noise meet out of step and cancel at $a$, so the noise drains into the resistor on $c$ instead of reaching the qubit.' },
-      { u: 1, dur: 4, caption: 'The amplified pulse leaves through the output connector and heads to the isolator.' },
     ],
   },
   {
     id: 'iso', name: 'Isolator', beats: [
-      { u: 0.15, dur: 6, caption: 'A short coax cable carries the amplified pulse to the isolator, a small block that lets microwaves pass in only one direction.' },
+      { u: 0.15, dur: 8, caption: 'The amplified pulse leaves the amplifier and takes a short coax cable to the isolator, a small block that lets microwaves pass in only one direction.' },
       { u: 0.3, dur: 6, caption: 'Inside, a disk of ferrite, a magnetic ceramic, sits under a strong magnet that we have lifted off so you can see in.' },
       { u: 0.6, dur: 7, caption: 'Our pulse enters at port 1, and the magnetized ferrite steers it around to port 2, losing almost nothing on the way.' },
       { u: 0.85, dur: 6, caption: 'The same HEMT noise arrives at port 2, since that port faces the HEMT, and gets steered on to port 3, where a resistor absorbs it.' },
@@ -52,10 +50,17 @@ export const STATIONS: { id: string; name: string; beats: Beat[] }[] = [
       { u: 1, dur: 7, title: 'To room temperature', caption: 'Now strong enough to survive the trip, the pulse heads up to room temperature, where the electronics read its twist.' },
     ],
   },
-  { id: 'screen', name: 'The screen', beats: [{ u: 1, dur: 4, caption: '' }] },
+  {
+    id: 'screen', name: 'The screen', beats: [
+      { u: 0.25, dur: 9, title: 'Out of the fridge', caption: 'At the top, the pulse leaves the fridge through a sealed connector and runs along an ordinary cable to a rack of room-temperature electronics.' },
+      { u: 0.4, dur: 6, title: 'Reading the twist', caption: 'There, a mixer compares the pulse with the reference split off from the same microwave generator, and a digitizer records the twist as two numbers, $I$ and $Q$.' },
+      { u: 0.6, dur: 6, title: 'The screen', caption: 'Each pulse becomes one dot on the scientist’s screen, and the side of the dividing line it lands on tells us whether the qubit was 0 or 1.' },
+      { u: 1, dur: 12, caption: 'Repeating this thousands of times builds two clouds, and with the directional amplifier in the chain they separate so cleanly that about 99.7% of readings come out right.' },
+    ],
+  },
 ]
 
-export const BUILT = 4 // stations finished so far
+export const BUILT = 5 // stations finished so far
 
 /** Station 1 opens on the fridge and the plate; from u = INTRO on, v runs 0..1 over the chip part. */
 export const INTRO = 0.2
@@ -74,6 +79,7 @@ type PathState = {
   orbiting: boolean // the viewer has taken over the camera
   time: number // shared animation clock (s), frozen while paused
   qubit: 0 | 1
+  withAmp: boolean // the final screen can show the readout without the directional amplifier
   set: (p: Partial<PathState>) => void
   next: () => void
   back: () => void
@@ -92,6 +98,7 @@ export const usePath = create<PathState>((set, get) => ({
   orbiting: false,
   time: 0,
   qubit: 1,
+  withAmp: true,
   set: (p) => set(p),
   next: () => {
     const { station, beat, orbiting } = get()
