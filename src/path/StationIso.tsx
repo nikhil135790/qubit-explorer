@@ -196,14 +196,14 @@ export function StationIso() {
     const ampSpec: TrailSpec = {
       center: () => { const a = fwdArc(stationU()); return a > -999 && a < L.ampEnd ? a : -999 },
       width: 4, pitch: 3.2,
-      lift: (a) => L.onAmp(a) * Math.min(26, vis.current * 2.2) * 2.4,
+      lift: (a) => L.onAmp(a) * Math.min(26, vis.current * 2.2) * 1.05,
       radius: (a) => { const m = L.onAmp(a); return 6 * (1 - m) + Math.min(26, vis.current * 2.2) * m },
       twist: () => READOUT_PHASE[usePath.getState().qubit],
     }
     const fwdSpec: TrailSpec = {
       center: () => { const a = fwdArc(stationU()); return a >= L.ampEnd ? a : -999 }, width: 26, pitch: 22,
       // on the amplifier chip and board the field rides above the trace; in connectors and coax it fits inside
-      lift: (a) => L.onAmp(a) * Math.min(26, vis.current * 2.2) * 2.4,
+      lift: (a) => L.onAmp(a) * Math.min(26, vis.current * 2.2) * 1.05,
       radius: (a) => { const k = L.inF(a), m = L.onAmp(a); return (6 * (1 - k) + big() * k) * (1 - m) + Math.min(26, vis.current * 2.2) * m },
       twist: () => READOUT_PHASE[usePath.getState().qubit],
     }

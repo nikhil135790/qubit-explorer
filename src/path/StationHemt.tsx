@@ -153,11 +153,11 @@ export function StationHemt() {
     const fwdSpec: TrailSpec = {
       center: () => fwdArc(stationU()), width: 30, pitch: 14,
       radius: (a) => (inBox(a) ? Math.min(70, vis.current * grow(a)) : 7),
-      lift: (a) => inBox(a) * Math.min(70, vis.current * grow(a)) * 2.4,
+      lift: (a) => inBox(a) * Math.min(70, vis.current * grow(a)) * 0.9,
       twist: () => READOUT_PHASE[usePath.getState().qubit],
     }
     const noiseSpec: TrailSpec = {
-      center: () => noiseArc(stationU()), width: 26, pitch: 22, lift: (a) => (a < L.nOut ? Math.min(40, vis.current * 0.55) * 2.4 : 0),
+      center: () => noiseArc(stationU()), width: 26, pitch: 22, lift: (a) => (a < L.nOut ? Math.min(40, vis.current * 0.55) * 0.9 : 0),
       radius: (a) => (a < L.nOut ? Math.min(40, vis.current * 0.55) : 7), twist: () => 0, fuzz: () => 0.9,
     }
     return { fwdSpec, noiseSpec }

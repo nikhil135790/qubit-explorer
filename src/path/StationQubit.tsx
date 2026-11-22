@@ -84,6 +84,8 @@ const PATH_PTS: [number, number, number][] = [
 const DIVE = new THREE.Vector3(0.25, 0.8, 0.55).normalize() // one line of sight from the pads down into the junction
 const RES_ARC = 40 + MAIN_X // the followed qubit's resonator couples to the feedline here
 const PULSE_START = 0.42
+// chase camera: high enough that the field spiral reads as riding above the feedline, not landing on it
+const CHASE = new THREE.Vector3(-9, 15, 13)
 
 export function StationQubit() {
   const { camera } = useThree()
@@ -114,7 +116,7 @@ export function StationQubit() {
     width: 5,
     pitch: 4,
     radius: rad,
-    lift: (a) => rad(a) * 2.4 * (1 - inConn(a)),
+    lift: (a) => rad(a) * 1.05 * (1 - inConn(a)),
     twist: (a) => (a > RES_ARC ? READOUT_PHASE[usePath.getState().qubit] : 0),
   }), [len, inConn])
   const ghost = useMemo<TrailSpec>(() => ({
@@ -159,7 +161,7 @@ export function StationQubit() {
       const a = Math.max(0, arcAt(u))
       curve.getPointAt(Math.min(1, a / len), tmp.p)
       const s = 1 + Math.max(0, a - 84) / 22 // start widening once the pulse reaches the chip edge
-      const chase: Shot = { pos: tmp.p.clone().add(new THREE.Vector3(-13, 9, 16).multiplyScalar(s)), look: tmp.p.clone() }
+      const chase: Shot = { pos: tmp.p.clone().add(CHASE.clone().multiplyScalar(s)), look: tmp.p.clone() }
       zoomShot(K.junction, K.chip, seg(v, 0.14, 0.28), tmp.b)
       target = blendShots(tmp.b, chase, seg(v, 0.34, 0.46), tmp.c)
     }

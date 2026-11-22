@@ -142,7 +142,7 @@ export function Path() {
   const paused = usePath((s) => s.paused)
   const qubit = usePath((s) => s.qubit)
   const running = usePath((s) => s.u < STATIONS[s.station].beats[s.beat].u - 1e-4)
-  const { set, next, back, replay, goStation } = usePath.getState()
+  const { set, next, back, goStation } = usePath.getState()
   const S = STATIONS[station]
   const B = S.beats[beat]
   const atEnd = station === BUILT - 1 && beat === S.beats.length - 1
@@ -164,7 +164,7 @@ export function Path() {
           <button onClick={back} disabled={station === 0 && beat === 0}>Back</button>
           <button className="p-next" onClick={next} disabled={atEnd}>Next</button>
           <button onClick={() => { if (paused && usePath.getState().orbiting) rig.catchup = 1.2; set(paused ? { paused: false, orbiting: false } : { paused: true }) }}>{paused ? 'Resume' : 'Pause'}</button>
-          <button onClick={replay}>Replay step</button>
+          <button onClick={() => goStation(0)}>Start over</button>
         </div>
         <div className="p-stations">
           {STATIONS.map((s, i) => (
