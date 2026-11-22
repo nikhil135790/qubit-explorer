@@ -11,6 +11,7 @@ import { StationAmp } from './StationAmp'
 import { StationIso } from './StationIso'
 import { StationHemt } from './StationHemt'
 import { StationScreen } from './StationScreen'
+import { StationDown } from './StationDown'
 import { Aside } from './Asides'
 import { OtherChains } from './OtherChains'
 import { Fridge, OurLines } from './Fridge'
@@ -118,6 +119,7 @@ const World = memo(function World() {
       <Fridge />
       <OurLines />
       <OtherChains />
+      <StationDown />
       <StationQubit />
       <StationAmp />
       <StationIso />

@@ -7,7 +7,7 @@ import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { GOLD } from './StationQubit'
-import { usePath, seg, useSettled } from './state'
+import { usePath, seg, useSettled, ST } from './state'
 import { blendShots, zoomShot, drive, rig, shot } from './rig'
 import type { Shot } from './rig'
 
@@ -155,12 +155,12 @@ export function Isolator({ glow, closed }: { glow?: React.RefObject<THREE.MeshSt
   )
 }
 
-const stationU = () => { const st = usePath.getState(); return st.station === 2 ? st.u : st.station > 2 ? 1 : 0 }
-const here = () => usePath.getState().station === 2
+const stationU = () => { const st = usePath.getState(); return st.station === ST.iso ? st.u : st.station > ST.iso ? 1 : 0 }
+const here = () => usePath.getState().station === ST.iso
 
 export function StationIso() {
   const settled = useSettled()
-  const beat = usePath((st) => (st.station === 2 && settled ? st.beat : -1))
+  const beat = usePath((st) => (st.station === ST.iso && settled ? st.beat : -1))
   const { camera } = useThree()
   const fwd = useMemo(() => v3(FWD), [])
   const noise = useMemo(() => v3(NOISE), [])
@@ -264,7 +264,7 @@ export function StationIso() {
         <Label open pos={[ISO.x, 75, ISO.z]}>Isolator</Label>
         <Label open pos={[1120, 30, 2]}>Coax cable</Label>
       </>}
-      {usePath.getState().station === 2 && beat >= 0 && <Html position={ang(100, 58, ISO.y + 54)} center zIndexRange={[9, 0]}><span className="b-tag">B</span></Html>}
+      {beat >= 0 && <Html position={ang(100, 58, ISO.y + 54)} center zIndexRange={[9, 0]}><span className="b-tag">B</span></Html>}
       {beat === 1 && <>
         <Label open pos={[LIFTED[0] + 105, LIFTED[1] + 20, LIFTED[2]]}>Magnet, lifted off</Label>
         <Label open pos={ang(150, 95, ISO.y + 4)}>Ferrite disk</Label>

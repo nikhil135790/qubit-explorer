@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Label } from '../scene/common'
-import { usePath, useSettled } from './state'
+import { usePath, useSettled, ST } from './state'
 
 /**
  * A dilution refrigerator "chandelier" with its radiation shields and vacuum can removed, in the
@@ -105,7 +105,7 @@ const LINE_ANGLES = Array.from({ length: 15 }, (_, i) => 198 + i * 10.5)
 
 export function Fridge() {
   const settled = useSettled()
-  const beat = usePath((s) => (s.station === 0 && settled ? s.beat : -1))
+  const beat = usePath((s) => (s.station === ST.down && settled ? s.beat : -1))
   const tex = useMemo(() => ({ gold: plateTexture(true), plain: plateTexture(false), steel: plateTexture(true, true) }), [])
 
   const mats = useMemo(() => ({
@@ -260,7 +260,7 @@ export function Fridge() {
 
       {beat === 0 && PLATES.map((p) => <Label key={p.key} open pos={labelAt(p)}>{p.label}</Label>)}
       {beat === 0 && <Label open pos={[ptx - 300, TOP + 700, ptz]}>Pulse tube cooler</Label>}
-      {beat === 1 && <>
+      {beat === 4 && <>
         <Label open pos={[-60, 40, 120]}>Our qubit chip box</Label>
         <Label open pos={[960, 40, 60]}>Amplifier box</Label>
         <Label open pos={[1400, 75, 0]}>Isolator</Label>
@@ -277,8 +277,6 @@ export function OurLines() {
     return new THREE.CatmullRomCurve3(full.map((p) => new THREE.Vector3(...p)), false, 'centripetal', 0.2)
   }
   const routes = useMemo(() => [
-    // qubit drive and readout input, coming down from room temperature
-    { c: tube([[-207, 0.6, 0], [-245, 0.6, 0], [-268, 6, 0], [-280, 30, 0], [-282, 80, 0], [-282, 140, 0]]), att: [-282, 230, 0] as const },
     // pump line for the amplifier
     { c: tube([[900, 0.5, 103], [900, 0.5, 160], [882, 0.5, 222], [842, 0.5, 270], [770, 0.5, 300], [732, 0.5, 300], [708, 8, 300], [700, 40, 300], [698, 100, 300], [698, 150, 300]]), att: [698, 260, 300] as const },
   ], [])

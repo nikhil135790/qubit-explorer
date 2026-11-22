@@ -9,7 +9,7 @@ import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { Bond, GOLD, PCB } from './StationQubit'
-import { usePath, seg, ampU, useSettled } from './state'
+import { usePath, seg, ampU, useSettled, ST } from './state'
 import { blendShots, drive, rig } from './rig'
 import type { Shot } from './rig'
 
@@ -147,12 +147,12 @@ function Cable({ curve }: { curve: THREE.Curve<THREE.Vector3> }) {
 }
 
 /** u for this station's own timeline: 0 before we get here, 1 once we've moved on. */
-const stationU = () => { const st = usePath.getState(); return st.station === 1 ? st.u : st.station > 1 ? 1 : 0 }
-const here = () => usePath.getState().station === 1
+const stationU = () => { const st = usePath.getState(); return st.station === ST.amp ? st.u : st.station > ST.amp ? 1 : 0 }
+const here = () => usePath.getState().station === ST.amp
 
 export function StationAmp() {
   const settled = useSettled()
-  const beat = usePath((st) => (st.station === 1 && settled ? st.beat : -1))
+  const beat = usePath((st) => (st.station === ST.amp && settled ? st.beat : -1))
   const { camera } = useThree()
   const fwd = useMemo(() => v3(FORWARD), [])
   const det = useMemo(() => v3(DETOUR), [])

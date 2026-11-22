@@ -6,7 +6,7 @@ import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { Bond, GOLD } from './StationQubit'
-import { usePath, seg, useSettled } from './state'
+import { usePath, seg, useSettled, ST } from './state'
 import { blendShots, zoomShot, drive, rig, shot } from './rig'
 import type { Shot } from './rig'
 
@@ -110,12 +110,12 @@ function HemtBox() {
   )
 }
 
-const stationU = () => { const st = usePath.getState(); return st.station === 3 ? st.u : st.station > 3 ? 1 : 0 }
-const here = () => usePath.getState().station === 3
+const stationU = () => { const st = usePath.getState(); return st.station === ST.hemt ? st.u : st.station > ST.hemt ? 1 : 0 }
+const here = () => usePath.getState().station === ST.hemt
 
 export function StationHemt() {
   const settled = useSettled()
-  const beat = usePath((st) => (st.station === 3 && settled ? st.beat : -1))
+  const beat = usePath((st) => (st.station === ST.hemt && settled ? st.beat : -1))
   const { camera } = useThree()
   const fwd = useMemo(() => v3(FWD), [])
   const noise = useMemo(() => v3(NOISE), [])

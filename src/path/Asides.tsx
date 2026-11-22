@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { usePath, seg, STATIONS } from './state'
+import { usePath, seg, STATIONS, ST } from './state'
 import { Tex } from '../ui/Tex'
 
 /**
@@ -59,7 +59,7 @@ function Dial({ k = 1, sig = 0, size = 200, tq = 0, legend = true }: { k?: numbe
 
 function TwistBox() {
   // the arrow swings while the pulse passes the resonator
-  const k = usePath((s) => seg(s.u, STATIONS[0].beats[5].u, STATIONS[0].beats[6].u - 0.04))
+  const k = usePath((s) => seg(s.u, STATIONS[ST.qubit].beats[4].u, STATIONS[ST.qubit].beats[5].u - 0.04))
   return (
     <Box title="Reading the phase" note="We compare the returning pulse with a reference wave split off from the one we sent in. A phase $45^\circ$ ahead of the reference means the qubit is 1, and $45^\circ$ behind means it is 0.">
       <Dial k={k} />
@@ -287,7 +287,7 @@ function MixerBox() {
     <g><rect x={x} y={y} width={w} height={22} rx={3} fill="#1b1d23" stroke={c} /><text x={x + w / 2} y={y + 15} textAnchor="middle" className="d-ref" fill={INK}>{label}</text></g>
   )
   return (
-    <Box title="What I and Q are" note="The returning wave is $A\cos(\omega t + \phi)$. The mixer multiplies it by the reference and by the reference delayed a quarter cycle, giving $I = A\cos\phi$, the part in step with the reference, and $Q = A\sin\phi$, the part a quarter cycle off. The phase $\phi$ is then the angle of the point $(I, Q)$.">
+    <Box title="What I and Q are" note="The returning wave is $A\cos(\omega t + \phi)$. The FPGA multiplies the recording by the reference and by the reference delayed a quarter cycle, giving $I = A\cos\phi$, the part in step with the reference, and $Q = A\sin\phi$, the part a quarter cycle off. The phase $\phi$ is then the angle of the point $(I, Q)$.">
       <svg viewBox="0 0 230 150" width="220" height="143" aria-hidden>
         {box(8, 8, 100, 'generator')}
         {box(130, 8, 92, 'down to qubit', '#6b7280')}
@@ -298,7 +298,7 @@ function MixerBox() {
         <line x1={176} y1={70} x2={176} y2={78} stroke={GOLD} strokeWidth={1.6} />
         <path d="M58,74 L58,90 L110,90" stroke={GOLD} strokeWidth={1.6} fill="none" strokeDasharray="4 3" />
         <path d="M176,78 L176,90 L150,90" stroke={GOLD} strokeWidth={1.6} fill="none" />
-        {box(110, 80, 40, 'mixer', GOLD)}
+        {box(96, 80, 68, 'mixer, FPGA', GOLD)}
         <line x1={130} y1={102} x2={130} y2={116} stroke={INK} />
         {box(80, 116, 100, 'I and Q')}
       </svg>
@@ -337,18 +337,18 @@ function WithWithout() {
 }
 
 const ASIDES: Record<string, () => ReactNode> = {
-  '4-1': () => <MixerBox />,
-  '4-3': () => <WithWithout />,
-  '3-1': () => <WhatHemt />,
-  '3-3': () => <QuietFirst />,
-  '0-6': () => <TwistBox />,
-  '1-1': () => <WhyAmplify />,
-  '1-3': () => <TwoRoutes />,
-  '1-4': () => <AddBox />,
-  '1-5': () => <BackwardBox />,
-  '1-6': () => <CancelBox />,
-  '2-1': () => <Roundabout />,
-  '2-3': () => <ResistorBox />,
+  [`${ST.qubit}-5`]: () => <TwistBox />,
+  [`${ST.amp}-1`]: () => <WhyAmplify />,
+  [`${ST.amp}-3`]: () => <TwoRoutes />,
+  [`${ST.amp}-4`]: () => <AddBox />,
+  [`${ST.amp}-5`]: () => <BackwardBox />,
+  [`${ST.amp}-6`]: () => <CancelBox />,
+  [`${ST.iso}-1`]: () => <Roundabout />,
+  [`${ST.iso}-3`]: () => <ResistorBox />,
+  [`${ST.hemt}-1`]: () => <WhatHemt />,
+  [`${ST.hemt}-3`]: () => <QuietFirst />,
+  [`${ST.screen}-2`]: () => <MixerBox />,
+  [`${ST.screen}-4`]: () => <WithWithout />,
 }
 
 export function Aside({ station, beat }: { station: number; beat: number }) {

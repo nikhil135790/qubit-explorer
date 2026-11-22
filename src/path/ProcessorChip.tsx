@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Rect, Cpw, GAP, Y_GROUND, Y_GAP, Y_TRACE } from '../journey/Chip'
+import { Rect, Cpw, GAP, FILM, Y_GROUND, Y_GAP, Y_TRACE } from '../journey/Chip'
 
 /**
  * A 4-qubit chip in the style of Princeton (Houck / de Leon) tantalum devices:
@@ -11,6 +11,21 @@ import { Rect, Cpw, GAP, Y_GROUND, Y_GAP, Y_TRACE } from '../journey/Chip'
  * what gives each one its own readout frequency.
  */
 export const QX = [-30, -10, 10, 30] // qubit positions along the feedline
+/** The two coupling capacitors that fence the feedline into a shared Purcell filter (a band-pass section). */
+export const PURCELL_X = 40
+
+/** An interdigitated capacitor cut into the feedline: the trace breaks and its two ends interleave fingers. */
+function FingerCap({ x }: { x: number }) {
+  const y = Y_TRACE + 0.0065
+  return (
+    <group position={[x, 0, 0]}>
+      <mesh position={[0, y, 0]}><boxGeometry args={[3, 0.002, 1.02]} /><meshStandardMaterial {...GAP} /></mesh>
+      {[-0.39, -0.13, 0.13, 0.39].map((z, i) => (
+        <mesh key={z} position={[i % 2 ? 0.3 : -0.3, y + 0.002, z]}><boxGeometry args={[2.4, 0.002, 0.14]} /><meshStandardMaterial {...FILM} /></mesh>
+      ))}
+    </group>
+  )
+}
 export const MAIN = 2 // the qubit we follow
 export const MAIN_X = QX[MAIN]
 export const QZ = -16.1 // qubit center (pads straddle this line)
@@ -60,6 +75,8 @@ export function ProcessorChip({ pulseX }: { pulseX: () => number }) {
       <mesh position={[0, -0.6, -6]}><boxGeometry args={[90, 1.2, 60]} /><meshStandardMaterial {...GAP} /></mesh>
       <Rect x={0} z={-6} w={90} d={60} y={Y_GROUND} mat={TA} h={0.02} />
       <Cpw pts={[[-45, 0], [45, 0]]} wc={1.0} wg={2.2} />
+      <FingerCap x={-PURCELL_X} />
+      <FingerCap x={PURCELL_X} />
       {QX.map((x0, i) => (
         <group key={x0}>
           {i === MAIN ? <group ref={glow}><Cpw pts={resonator(x0, ELBOW[i])} wc={0.5} wg={1.1} /></group> : <Cpw pts={resonator(x0, ELBOW[i])} wc={0.5} wg={1.1} />}

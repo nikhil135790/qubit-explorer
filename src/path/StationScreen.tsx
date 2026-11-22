@@ -7,7 +7,7 @@ import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
 import { GOLD } from './StationQubit'
 import { FR } from './Fridge'
-import { usePath, seg, useSettled } from './state'
+import { usePath, seg, useSettled, ST } from './state'
 import { blendShots, drive, rig, shot } from './rig'
 import type { Shot } from './rig'
 
@@ -29,8 +29,9 @@ export const FID = { with: 99.7, without: 86.6 }
 
 // rack and instruments
 const RACK = { x0: 22000, x1: 28000, z0: -2000, z1: 6000, top: 12500 }
-const FRONT = RACK.z1
-const GEN_Y = 10445, MIX_Y = 9222, DIG_Y = 8145
+export const FRONT = RACK.z1
+export const GEN_Y = 10445
+const MIX_Y = 9222, DIG_Y = 8145
 const RF_IN: V = [23500, MIX_Y, FRONT + 60]
 const LO_IN: V = [24300, MIX_Y, FRONT + 60]
 // desk and monitor
@@ -42,13 +43,13 @@ const ROUTE: V[] = [
   [16000, 14000, 4200], [22300, 13300, 6200], [23400, 11600, 6420], [23500, 9800, 6330], [23500, 9420, 6200], RF_IN,
 ]
 // the generator's tone, split: one cable to the fridge input on the top flange, one short loop to the mixer
-const TO_FRIDGE: V[] = [[23000, GEN_Y, FRONT + 60], [23000, GEN_Y, FRONT + 500], [22600, 12600, 6000], [14000, 14600, 2400], [2000, 14400, -200], [-282, 13200, 0], [-282, TOP, 0]]
+export const TO_FRIDGE: V[] = [[23000, GEN_Y, FRONT + 60], [23000, GEN_Y, FRONT + 500], [22600, 12600, 6000], [14000, 14600, 2400], [2000, 14400, -200], [-282, 13200, 0], [-282, TOP, 0]]
 const TO_LO: V[] = [[23250, GEN_Y - 120, FRONT + 60], [23300, GEN_Y - 200, FRONT + 500], [24100, MIX_Y + 300, FRONT + 480], LO_IN]
 const IQ_OUT: V[][] = [
   [[25500, MIX_Y, FRONT + 60], [25550, MIX_Y - 300, FRONT + 420], [25450, DIG_Y + 300, FRONT + 420], [25300, DIG_Y, FRONT + 60]],
   [[26000, MIX_Y, FRONT + 60], [26050, MIX_Y - 300, FRONT + 520], [25950, DIG_Y + 300, FRONT + 520], [25800, DIG_Y, FRONT + 60]],
 ]
-const TO_MONITOR: V[] = [[27400, 6200, FRONT + 60], [27400, 4800, FRONT + 700], [24000, 300, 3400], [18000, 60, 1200], [MON.x + 600, 60, 1000]]
+const TO_MONITOR: V[] = [[27300, 5420, FRONT - 400], [27500, 5000, FRONT + 300], [27400, 4800, FRONT + 700], [24000, 300, 3400], [18000, 60, 1200], [MON.x + 600, 60, 1000]]
 
 const v3 = (p: V[]) => new THREE.CatmullRomCurve3(p.map((q) => new THREE.Vector3(...q)), false, 'centripetal')
 
@@ -94,6 +95,25 @@ function Instrument({ y, u, display, knobs = 0, jacks = [] as number[], leds = 0
   )
 }
 
+const FPGA = { x: 24300, y: 5400, z: FRONT - 1400 }
+function FpgaBoard() {
+  const { x, y, z } = FPGA
+  return (
+    <group>
+      <mesh position={[(RACK.x0 + RACK.x1) / 2, y - 60, FRONT - 3000]}><boxGeometry args={[RACK.x1 - RACK.x0 - 400, 60, 6000]} /><meshStandardMaterial color="#2a2c30" metalness={0.5} roughness={0.5} /></mesh>
+      <mesh position={[x + 600, y, z]}><boxGeometry args={[4200, 40, 2600]} /><meshStandardMaterial color="#1e5a3c" roughness={0.6} /></mesh>
+      {/* the FPGA itself, with its heatsink */}
+      <mesh position={[x, y + 60, z]}><boxGeometry args={[900, 80, 900]} /><meshStandardMaterial color="#1b1c1f" roughness={0.4} /></mesh>
+      {Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[x - 400 + i * 100, y + 260, z]}><boxGeometry args={[40, 320, 880]} /><meshStandardMaterial color="#9a9da3" metalness={0.8} roughness={0.35} /></mesh>)}
+      {/* memory and support chips, and the connectors along the front edge */}
+      {[[-1200, -700], [-1200, 0], [-1200, 700], [1700, -600], [1700, 400]].map(([dx, dz], i) => (
+        <mesh key={i} position={[x + dx, y + 40, z + dz]}><boxGeometry args={[520, 40, 380]} /><meshStandardMaterial color="#202125" roughness={0.45} /></mesh>
+      ))}
+      {[0, 1, 2, 3].map((i) => <mesh key={i} position={[x - 700 + i * 600, y + 80, z + 1250]}><boxGeometry args={[360, 120, 160]} /><meshStandardMaterial {...GOLD} /></mesh>)}
+    </group>
+  )
+}
+
 function Lab() {
   const legs = [18.5, 108.5, 198.5, 288.5].map((d) => [FR.cx + 6500 * Math.cos((d * Math.PI) / 180), FR.cz + 6500 * Math.sin((d * Math.PI) / 180)] as const)
   const rackCx = (RACK.x0 + RACK.x1) / 2, rackCz = (RACK.z0 + RACK.z1) / 2
@@ -104,12 +124,12 @@ function Lab() {
       {/* the frame the fridge hangs from: four aluminium legs, arms out to the top flange */}
       {legs.map(([x, z], i) => (
         <group key={i}>
-          <mesh position={[x, (FLOOR + 11900) / 2, z]}><boxGeometry args={[800, 11900 - FLOOR, 800]} /><meshStandardMaterial {...STEEL} /></mesh>
+          <mesh position={[x, (FLOOR + 11900) / 2, z]}><boxGeometry args={[450, 11900 - FLOOR, 450]} /><meshStandardMaterial color="#4a4d53" metalness={0.5} roughness={0.55} /></mesh>
           <mesh position={[x, FLOOR + 60, z]}><boxGeometry args={[1600, 120, 1600]} /><meshStandardMaterial color="#1c1c1e" roughness={0.7} /></mesh>
           {(() => {
             const dx = FR.cx - x, dz = FR.cz - z, L = Math.hypot(dx, dz) - 2900
             const mx = x + (dx / Math.hypot(dx, dz)) * (L / 2), mz = z + (dz / Math.hypot(dx, dz)) * (L / 2)
-            return <mesh position={[mx, 11700, mz]} rotation={[0, -Math.atan2(dz, dx), 0]}><boxGeometry args={[L, 600, 600]} /><meshStandardMaterial {...STEEL} /></mesh>
+            return <mesh position={[mx, 11700, mz]} rotation={[0, -Math.atan2(dz, dx), 0]}><boxGeometry args={[L, 400, 400]} /><meshStandardMaterial color="#4a4d53" metalness={0.5} roughness={0.55} /></mesh>
           })()}
         </group>
       ))}
@@ -125,7 +145,8 @@ function Lab() {
       <Instrument y={GEN_Y} u={2} display={[25600, 2600]} knobs={0} jacks={[23000]} leds={2} />
       <Instrument y={MIX_Y} u={1} jacks={[23500, 24300, 25500, 26000]} leds={1} />
       <Instrument y={DIG_Y} u={2} display={[26600, 1400]} jacks={[25300, 25800]} leds={4} />
-      <Instrument y={6200} u={4} leds={6} />
+      {/* FPGA board on an open shelf: a green circuit board with the FPGA chip under a finned heatsink */}
+      <FpgaBoard />
       <Instrument y={3600} u={4} knobs={3} leds={2} />
       <Instrument y={1100} u={3} leds={3} />
 
@@ -139,10 +160,14 @@ function Lab() {
       <mesh position={[MON.x - 200, 60, 4200]}><boxGeometry args={[4400, 120, 1400]} /><meshStandardMaterial color="#1e1f22" roughness={0.6} /></mesh>
 
       {/* cables */}
-      <Cable pts={TO_FRIDGE} />
+      <Cable pts={TO_FRIDGE} see />
+      {/* splitter on the generator's output: half goes to the fridge, half stays as the reference */}
+      <mesh position={[23120, GEN_Y - 60, FRONT + 260]}><boxGeometry args={[420, 260, 260]} /><meshStandardMaterial {...GOLD} /></mesh>
       <Cable pts={TO_LO} r={26} />
       {IQ_OUT.map((p, i) => <Cable key={i} pts={p} r={26} />)}
       <Cable pts={TO_MONITOR} r={40} color="#1a1a1c" />
+      <Cable pts={[[25300, DIG_Y, FRONT + 60], [25350, DIG_Y - 400, FRONT + 500], [24600, FPGA.y + 600, FRONT + 300], [FPGA.x + 200, FPGA.y + 80, FPGA.z + 1250]]} r={26} />
+      <Cable pts={[[25800, DIG_Y, FRONT + 60], [25850, DIG_Y - 400, FRONT + 620], [25300, FPGA.y + 600, FRONT + 360], [FPGA.x + 800, FPGA.y + 80, FPGA.z + 1250]]} r={26} />
     </group>
   )
 }
@@ -227,12 +252,12 @@ function drawPlot(ctx: CanvasRenderingContext2D, n: number, single: boolean, qub
   }
 }
 
-const stationU = () => { const st = usePath.getState(); return st.station === 4 ? st.u : 0 }
-const here = () => usePath.getState().station === 4
+const stationU = () => { const st = usePath.getState(); return st.station === ST.screen ? st.u : 0 }
+const here = () => usePath.getState().station === ST.screen
 
 export function StationScreen() {
   const settled = useSettled()
-  const beat = usePath((st) => (st.station === 4 && settled ? st.beat : -1))
+  const beat = usePath((st) => (st.station === ST.screen && settled ? st.beat : -1))
   const { camera } = useThree()
   const route = useMemo(() => v3(ROUTE), [])
   const len = useMemo(() => route.getLength(), [route])
@@ -264,6 +289,7 @@ export function StationScreen() {
       wide: { look: wl, pos: wl.clone().addScaledVector(new THREE.Vector3(0.15, 0.25, 1).normalize(), 36000) } as Shot,
       rack: { look: rl, pos: rl.clone().add(new THREE.Vector3(2600, 1400, 10500)) } as Shot,
       mon: { look: ml, pos: ml.clone().add(new THREE.Vector3(900, 500, 8400)) } as Shot,
+      fpga: { look: new THREE.Vector3(FPGA.x + 900, FPGA.y + 200, FPGA.z + 600), pos: new THREE.Vector3(FPGA.x + 900, FPGA.y + 200, FPGA.z + 600).add(new THREE.Vector3(1400, 2600, 5200)) } as Shot,
     }
   }, [])
 
@@ -271,8 +297,8 @@ export function StationScreen() {
     const u = stationU()
     // redraw the monitor only when what it shows has changed
     const st = usePath.getState()
-    const n = st.station === 4 ? Math.floor(seg(u, 0.6, 0.97) * NPTS) : 0
-    const single = st.station === 4 && u >= 0.45 && u < 0.6 + 1e-4 && n === 0
+    const n = st.station === ST.screen ? Math.floor(seg(u, 0.6, 0.97) * NPTS) : 0
+    const single = st.station === ST.screen && u >= 0.57 && u < 0.6 + 1e-4 && n === 0
     const ping = single ? (st.time * 0.8) % 1 : 0
     const key = `${n}|${single}|${st.qubit}|${st.withAmp}|${single ? ping.toFixed(2) : ''}`
     if (key !== last.current) {
@@ -289,8 +315,8 @@ export function StationScreen() {
       const ch: Shot = { look: tmp.p.clone(), pos: tmp.p.clone().add(new THREE.Vector3(170, 40, 270).multiplyScalar(s)) }
       target = blendShots(ch, K.wide, seg(u, 0.12, 0.2), tmp.a)
       target = blendShots(target, K.rack, seg(u, 0.21, 0.25), tmp.b)
-    } else if (u < 0.45) target = K.rack
-    else target = blendShots(K.rack, K.mon, seg(u, 0.4, 0.47), tmp.a)
+    } else if (u < 0.5) target = blendShots(K.rack, K.fpga, seg(u, 0.4, 0.46), tmp.a)
+    else target = blendShots(K.fpga, K.mon, seg(u, 0.5, 0.57), tmp.a)
     vis.current = Math.max(1, camera.position.distanceTo(rig.look) / 22)
     if (!here() || st.paused || st.orbiting) return
     drive(camera, target, dt)
@@ -306,6 +332,7 @@ export function StationScreen() {
         <Label open pos={[1972, PLATE_TOP_Y + 260, 226]}>Sealed connector on the top flange</Label>
         <Label open pos={[25000, RACK.top + 600, FRONT]}>Room-temperature electronics</Label>
       </>}
+      {beat === 2 && <Label open pos={[FPGA.x, FPGA.y + 480, FPGA.z]}>FPGA</Label>}
       {beat === 1 && <>
         <Label open pos={[22800, GEN_Y + 500, FRONT + 100]}>Microwave generator</Label>
         <Label open pos={[24300, MIX_Y - 380, FRONT + 100]}>Mixer</Label>

@@ -1,12 +1,12 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { ProcessorChip, QZ, MAIN_X } from './ProcessorChip'
+import { ProcessorChip, QZ, MAIN_X, PURCELL_X } from './ProcessorChip'
 import { READOUT_PHASE, READOUT_AMP } from '../journey/state'
 import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
 import type { TrailSpec } from './PulseTrail'
-import { usePath, seg, chipV, INTRO, useSettled } from './state'
+import { usePath, seg, chipV, INTRO, useSettled, ST } from './state'
 import { JunctionDetail, J } from './Junction'
 import { FR } from './Fridge'
 import { blendShots, zoomShot, drive, rig, shot } from './rig'
@@ -87,17 +87,29 @@ const PULSE_START = 0.42
 // chase camera: high enough that the field spiral reads as riding above the feedline, not landing on it
 const CHASE = new THREE.Vector3(-9, 15, 13)
 
+/** The opening fridge shot (k = 0..1 is a slow drift around it) and the bottom-plate shot, shared with the trip down. */
+export const FRIDGE_LOOK = new THREE.Vector3(FR.cx, 4300, FR.cz)
+const FRIDGE_DIR = new THREE.Vector3(0.5, 0.1, 1).normalize()
+export const fridgeShot = (k: number, out: Shot) => {
+  const dir = FRIDGE_DIR.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.18 * (1 - k))
+  out.look.copy(FRIDGE_LOOK)
+  out.pos.copy(FRIDGE_LOOK).addScaledVector(dir, 33000)
+  return out
+}
+const PLATE_LOOK = new THREE.Vector3(450, -10, -20)
+export const PLATE_SHOT: Shot = { look: PLATE_LOOK, pos: PLATE_LOOK.clone().addScaledVector(new THREE.Vector3(0.3, 0.42, 1).normalize(), 1750) }
+
 export function StationQubit() {
   const { camera } = useThree()
   const settled = useSettled()
-  const beat = usePath((st) => (st.station === 0 ? st.beat : -1))
+  const beat = usePath((st) => (st.station === ST.qubit ? st.beat : -1))
   const curve = useMemo(() => new THREE.CatmullRomCurve3(PATH_PTS.map((p) => new THREE.Vector3(...p)), false, 'centripetal'), [])
   const len = useMemo(() => curve.getLength(), [curve])
   const vis = useRef(1) // drawing scale: keeps the pulse readable as the camera pulls back
   // slow on the chip so you can watch the resonator interaction, faster once it leaves
   const arcAt = (u: number) => {
     const w = chipV(u)
-    if (usePath.getState().station !== 0 || w < PULSE_START) return -999
+    if (usePath.getState().station !== ST.qubit || w < PULSE_START) return -999
     const v = (w - PULSE_START) / (1 - PULSE_START)
     if (v < 0.3) return (v / 0.3) * RES_ARC
     if (v < 0.55) return RES_ARC + ((v - 0.3) / 0.25) * 20
@@ -131,24 +143,13 @@ export function StationQubit() {
   const tmp = useMemo(() => ({ p: new THREE.Vector3(), a: shot(), b: shot(), c: shot() }), [])
   const K = useMemo(() => {
     const jl = new THREE.Vector3(MAIN_X, J.ySi, QZ)
-    const dirF = new THREE.Vector3(0.5, 0.1, 1).normalize()
-    const fl = new THREE.Vector3(FR.cx, 4300, FR.cz)
-    const pl = new THREE.Vector3(450, -10, -20)
     return {
-      fridgeLook: fl, dirF,
-      plate: { look: pl, pos: pl.clone().addScaledVector(new THREE.Vector3(0.3, 0.42, 1).normalize(), 1750) } as Shot,
+      plate: PLATE_SHOT,
       pads: { look: jl, pos: jl.clone().addScaledVector(DIVE, 13.5) } as Shot,
       junction: { look: jl, pos: jl.clone().addScaledVector(DIVE, 0.016) } as Shot,
       chip: { pos: new THREE.Vector3(30, 78, 82), look: new THREE.Vector3(0, 0, -9) } as Shot,
     }
   }, [])
-  const fridgeShot = (k: number, out: Shot) => {
-    // a slow drift around the fridge while it is introduced
-    const dir = K.dirF.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.18 * (1 - k))
-    out.look.copy(K.fridgeLook)
-    out.pos.copy(K.fridgeLook).addScaledVector(dir, 33000)
-    return out
-  }
   useFrame((_, dt) => {
     const { u, paused, orbiting, station } = usePath.getState()
     const v = chipV(u)
@@ -163,10 +164,10 @@ export function StationQubit() {
       const s = 1 + Math.max(0, a - 84) / 22 // start widening once the pulse reaches the chip edge
       const chase: Shot = { pos: tmp.p.clone().add(CHASE.clone().multiplyScalar(s)), look: tmp.p.clone() }
       zoomShot(K.junction, K.chip, seg(v, 0.14, 0.28), tmp.b)
-      target = blendShots(tmp.b, chase, seg(v, 0.34, 0.46), tmp.c)
+      target = blendShots(tmp.b, chase, seg(v, 0.38, 0.48), tmp.c)
     }
     vis.current = Math.max(1, camera.position.distanceTo(rig.look) / 22)
-    if (station !== 0 || paused || orbiting) return
+    if (station !== ST.qubit || paused || orbiting) return
     drive(camera, target, dt)
   })
 
@@ -178,19 +179,21 @@ export function StationQubit() {
       <PulseTrail curve={curve} spec={spec} />
       <JunctionDetail at={[MAIN_X, 0, QZ]} showPairs />
       {settled && <>
-      {beat === 2 && <>
+      {beat === 0 && <>
         <Label open pos={[MAIN_X + 0.4, 0.25, QZ]}>Josephson junction</Label>
         <Label open pos={[MAIN_X + 1.6, 0.25, QZ + 1.6]}>Capacitor pad</Label>
         <Label open pos={[MAIN_X + 1.6, 0.25, QZ - 1.6]}>Capacitor pad</Label>
       </>}
-      {beat === 3 && <>
+      {beat === 1 && <>
         <Label open pos={[MAIN_X, J.ySi + 0.0004, QZ + 0.006]}>Aluminum wire (30 nm thick)</Label>
         <Label open pos={[MAIN_X + 0.006, J.ySi + 0.0007, QZ]}>Aluminum wire (60 nm thick)</Label>
         <Label open pos={[MAIN_X - 0.0035, J.ySi + 0.0005, QZ + 0.0015]}>Oxide layer, about 2 nm</Label>
       </>}
-      {beat >= 4 && beat <= 6 && <Label open pos={[MAIN_X - 5, 0.4, -6]}>Readout resonator</Label>}
-      {beat === 7 && <Label open pos={[47, 5, 3]}>Wire bonds</Label>}
-      {beat === 8 && <Label open pos={[190, 14, 0]}>Connector</Label>}
+      {beat === 2 && <Label open pos={[MAIN_X - 5, 0.4, -6]}>Readout resonator</Label>}
+      {beat === 3 && <>
+        <Label open pos={[-PURCELL_X, 0.4, 0]}>Purcell filter capacitor</Label>
+        <Label open pos={[PURCELL_X, 0.4, 0]}>Purcell filter capacitor</Label>
+      </>}
       </>}
     </group>
   )
