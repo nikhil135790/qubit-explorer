@@ -95,8 +95,10 @@ const M = (x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, rx = 0, rz =
   new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, rz)), new THREE.Vector3(sx, sy, sz))
 
 /** Where the bottom plate stays clear of drilled holes (under the two packages and the mixing chamber). */
+const CHAINS: [number, number, boolean][] = [[0, 0, true], [150, -1500, true], [-1250, -700, false]] // our chain and the two others
 const clear = (x: number, z: number) =>
-  (Math.abs(x) < 205 && Math.abs(z) < 205) || (Math.abs(x - 900) < 110 && Math.abs(z) < 110) || Math.hypot(x - FR.cx, z - FR.cz) < 470 || Math.hypot(x - FR.cx, z - FR.cz) > 1990
+  CHAINS.some(([ox, oz, iso]) => (Math.abs(x - ox) < 205 && Math.abs(z - oz) < 205) || (Math.abs(x - ox - 900) < 110 && Math.abs(z - oz) < 110) || (iso && Math.hypot(x - ox - 1400, z - oz) < 200)) ||
+  Math.hypot(x - FR.cx, z - FR.cz) < 470 || Math.hypot(x - FR.cx, z - FR.cz) > 1990
 
 /** Semi-rigid coax lines from the top flange down to the bottom plate, with an attenuator at each stage. */
 const LINE_ANGLES = Array.from({ length: 15 }, (_, i) => 198 + i * 10.5)
@@ -259,9 +261,9 @@ export function Fridge() {
       {beat === 0 && PLATES.map((p) => <Label key={p.key} open pos={labelAt(p)}>{p.label}</Label>)}
       {beat === 0 && <Label open pos={[ptx - 300, TOP + 700, ptz]}>Pulse tube cooler</Label>}
       {beat === 1 && <>
-        <Label open pos={[-60, 40, 120]}>Qubit chip box</Label>
+        <Label open pos={[-60, 40, 120]}>Our qubit chip box</Label>
         <Label open pos={[960, 40, 60]}>Amplifier box</Label>
-        <Label open pos={[480, 60, 2]}>Coax cable</Label>
+        <Label open pos={[1400, 75, 0]}>Isolator</Label>
         <Label open pos={[FR.cx + 380, 300, FR.cz + 120]}>Mixing chamber</Label>
       </>}
     </group>

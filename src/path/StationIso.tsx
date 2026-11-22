@@ -20,6 +20,7 @@ import type { Shot } from './rig'
  */
 export const ISO = new THREE.Vector3(1400, 20, 0) // centre of the puck, at stripline height
 const R_BODY = 130
+const LIFTED: [number, number, number] = [ISO.x - 215, ISO.y + 30, ISO.z - 95]
 const TOP = 12115 + 180 // where the lines leave through the top flange
 
 const ang = (deg: number, r: number, y = ISO.y): [number, number, number] =>
@@ -81,21 +82,7 @@ function Port({ deg }: { deg: number }) {
   )
 }
 
-/** A curved arrow on the ferrite, from angle d0 to d1 (degrees), going the way the waves are steered. */
-function Turn({ d0, d1 }: { d0: number; d1: number }) {
-  const pts = Array.from({ length: 24 }, (_, i) => ang(d0 + ((d1 - d0) * i) / 23, 78, ISO.y + 2))
-  const end = new THREE.Vector3(...pts[23]), prev = new THREE.Vector3(...pts[21])
-  const dir = end.clone().sub(prev).normalize()
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
-  return (
-    <group>
-      <Line points={pts} color="#f3dcae" lineWidth={2} transparent opacity={0.8} />
-      <mesh position={end} quaternion={q}><coneGeometry args={[5, 13, 12]} /><meshBasicMaterial color="#f3dcae" transparent opacity={0.85} /></mesh>
-    </group>
-  )
-}
-
-function Isolator({ glow }: { glow: React.RefObject<THREE.MeshStandardMaterial | null> }) {
+export function Isolator({ glow, closed }: { glow?: React.RefObject<THREE.MeshStandardMaterial | null>; closed?: boolean }) {
   const y = ISO.y
   return (
     <group>
@@ -119,12 +106,22 @@ function Isolator({ glow }: { glow: React.RefObject<THREE.MeshStandardMaterial |
         <mesh position={[0, -1, 0]}><boxGeometry args={[18, 3, 26]} /><meshStandardMaterial color="#e8e4da" roughness={0.6} /></mesh>
         <mesh position={[0, 1.2, 0]}><boxGeometry args={[12, 1.5, 18]} /><meshStandardMaterial ref={glow} color="#3b2a25" roughness={0.5} emissive="#ff4a3a" emissiveIntensity={0} /></mesh>
       </group>
-      {/* the top ferrite and magnet are lifted off, drawn only as an outline so the inside shows */}
-      <mesh position={[ISO.x, y + 35, ISO.z]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[93, 95.5, 64]} /><meshBasicMaterial color="#b9bcc6" transparent opacity={0.5} side={THREE.DoubleSide} /></mesh>
-      {/* the one-way rotation the magnetised ferrite imposes: 1 to 2 to 3 */}
-      {[[165, 78], [45, -42], [-75, -162]].map(([d0, d1]) => <Turn key={d0} d0={d0} d1={d1} />)}
+      {/* screws holding the lid down (the lid itself is off) */}
+      {Array.from({ length: 6 }, (_, i) => { const [x, , z] = ang(i * 60 + 30, R_BODY - 4, 0); return (
+        <group key={i} position={[x, y + 44, z]}>
+          <mesh><cylinderGeometry args={[6, 6, 3, 16]} /><meshStandardMaterial color="#9a9690" metalness={1} roughness={0.3} /></mesh>
+          <mesh position={[0, 1.6, 0]}><cylinderGeometry args={[2.6, 2.6, 0.4, 6]} /><meshStandardMaterial color="#141414" /></mesh>
+        </group>) })}
       <Port deg={180} />
       <Port deg={60} />
+      {closed && <mesh position={[ISO.x, y + 45, ISO.z]}><cylinderGeometry args={[R_BODY, R_BODY, 5, 64]} /><meshStandardMaterial {...GOLD} /></mesh>}
+      {/* the top ferrite disk and magnet, lifted off and set to one side so the inside shows */}
+      {!closed && <><group position={LIFTED}>
+        <mesh position={[0, 0, 0]}><cylinderGeometry args={[105, 105, 14, 48]} /><meshStandardMaterial color="#26262a" roughness={0.85} /></mesh>
+        <mesh position={[0, 18, 0]}><cylinderGeometry args={[95, 95, 18, 48]} /><meshStandardMaterial color="#9ea1a8" metalness={0.9} roughness={0.35} /></mesh>
+      </group>
+      <Line points={[[ISO.x - 60, y + 46, ISO.z - 90], [LIFTED[0] - 60, LIFTED[1] - 8, LIFTED[2] + 60]]} color="#8d877b" lineWidth={1} dashed dashSize={6} gapSize={5} />
+      <Line points={[[ISO.x + 60, y + 46, ISO.z - 90], [LIFTED[0] + 60, LIFTED[1] - 8, LIFTED[2] + 60]]} color="#8d877b" lineWidth={1} dashed dashSize={6} gapSize={5} /></>}
     </group>
   )
 }
@@ -159,7 +156,7 @@ export function StationIso() {
     if (u < 0.85) return -999 // out of the way while the noise demo plays
     return L.exit + ((u - 0.85) / 0.15) * (L.fwd - L.exit)
   }
-  const noiseArc = (u: number) => (!here() || u < 0.6 || u > 0.86 ? -999 : ((u - 0.6) / 0.25) * (L.noise + 30))
+  const noiseArc = (u: number) => (!here() || u <= 0.6 || u > 0.86 ? -999 : ((u - 0.6) / 0.25) * (L.noise + 30))
 
   const specs = useMemo(() => {
     // the field spreads out in the ferrite, and fits snugly inside the coax and connectors
@@ -218,21 +215,14 @@ export function StationIso() {
         <Label open pos={[1120, 30, 2]}>Coax cable</Label>
       </>}
       {beat === 1 && <>
-        <Label open pos={ang(-20, 95, ISO.y + 35)}>Magnet, lifted off to show the inside</Label>
-        <Label open pos={ang(120, 78, ISO.y + 4)}>One-way rotation</Label>
-        <Label open pos={ang(150, 95, ISO.y + 12)}>Ferrite disk</Label>
-        <Label open pos={ang(180, 185)}>Port 1, from the amplifier</Label>
-        <Label open pos={ang(60, 140, ISO.y + 30)}>Port 2, toward the HEMT</Label>
-        <Label open pos={ang(-60, 112, ISO.y + 4)}>Port 3, ends in a resistor</Label>
+        <Label open pos={[LIFTED[0] + 105, LIFTED[1] + 20, LIFTED[2]]}>Magnet, lifted off</Label>
+        <Label open pos={ang(150, 95, ISO.y + 4)}>Ferrite disk</Label>
       </>}
       {beat === 2 && <>
         <Label open pos={ang(180, 185)}>Port 1</Label>
         <Label open pos={ang(60, 140, ISO.y + 30)}>Port 2</Label>
       </>}
-      {beat === 3 && <>
-        <Label open pos={[1534, 300, 226]}>Noise from the HEMT</Label>
-        <Label open pos={ang(-60, 112, ISO.y + 4)}>Resistor</Label>
-      </>}
+      {beat === 3 && <Label open pos={ang(-60, 112, ISO.y + 4)}>Port 3 and its resistor</Label>}
       {beat === 4 && <Label open pos={[1534, 1250, 226]}>Up toward the HEMT at 4 K</Label>}
     </group>
   )

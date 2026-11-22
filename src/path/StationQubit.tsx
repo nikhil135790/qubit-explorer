@@ -37,7 +37,7 @@ export function Bond({ from, to, h = 4 }: { from: [number, number, number]; to: 
   )
 }
 
-function Package() {
+export function Package({ lite = false }: { lite?: boolean } = {}) {
   const bonds: [[number, number, number], [number, number, number]][] = []
   for (const z of [-1.4, 0, 1.4]) { bonds.push([[41, 0.09, z], [53, 0.09, z]]); bonds.push([[-41, 0.09, z], [-53, 0.09, z]]) }
   for (const z of [-30, -20, -10, 10, 18]) { bonds.push([[44, 0.09, z], [53, 0.09, z]]); bonds.push([[-44, 0.09, z], [-53, 0.09, z]]) }
@@ -59,7 +59,7 @@ function Package() {
       <mesh position={[-110, 0.28, 0]}><boxGeometry args={[116, 0.08, 3]} /><meshStandardMaterial {...GOLD} /></mesh>
       {/* bond pads at the chip edge */}
       {[-41, 41].map((x) => <mesh key={x} position={[x, 0.09, 0]}><boxGeometry args={[5, 0.03, 5]} /><meshStandardMaterial {...AL} /></mesh>)}
-      {bonds.map(([a, b], i) => <Bond key={i} from={a} to={b} />)}
+      {!lite && bonds.map(([a, b], i) => <Bond key={i} from={a} to={b} />)}
       {/* copper package base and low walls */}
       <mesh position={[0, -20, 0]}><boxGeometry args={[380, 10, 380]} /><meshStandardMaterial color="#9c5f35" metalness={1} roughness={0.4} /></mesh>
       {[[0, 185, 380, 10], [0, -185, 380, 10], [185, 0, 10, 360], [-185, 0, 10, 360]].map(([x, z, w, d], i) => (
@@ -130,8 +130,7 @@ export function StationQubit() {
   const K = useMemo(() => {
     const jl = new THREE.Vector3(MAIN_X, J.ySi, QZ)
     const dirF = new THREE.Vector3(0.5, 0.1, 1).normalize()
-    const right = new THREE.Vector3(0, 1, 0).cross(dirF).normalize()
-    const fl = new THREE.Vector3(FR.cx, 4500, FR.cz).addScaledVector(right, -5400)
+    const fl = new THREE.Vector3(FR.cx, 4300, FR.cz)
     const pl = new THREE.Vector3(450, -10, -20)
     return {
       fridgeLook: fl, dirF,

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Environment, OrbitControls } from '@react-three/drei'
 import { EffectComposer, Bloom, ToneMapping, Vignette } from '@react-three/postprocessing'
@@ -9,7 +9,8 @@ import { usePath, STATIONS, BUILT, beatRunning } from './state'
 import { StationQubit } from './StationQubit'
 import { StationAmp } from './StationAmp'
 import { StationIso } from './StationIso'
-import { TwistDial } from './TwistDial'
+import { Aside } from './Asides'
+import { OtherChains } from './OtherChains'
 import { Fridge, OurLines } from './Fridge'
 import { rig } from './rig'
 import { Tex } from '../ui/Tex'
@@ -75,6 +76,10 @@ function ScaleRig() {
     cam.near = Math.min(20, Math.max(1e-6, d * 0.004))
     cam.far = 400000
     cam.updateProjectionMatrix()
+    // wide fridge shots: shift the picture so the fridge sits right of the caption, without moving
+    // the point the camera turns around (that stays on the fridge's axis)
+    const wide = THREE.MathUtils.smoothstep(Math.log10(d), 3.8, 4.3)
+    cam.filmOffset = -0.13 * 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect * cam.getFilmWidth() * wide
     const f = THREE.MathUtils.smoothstep(Math.log10(d), 2.2, 3.6)
     scene.environmentIntensity = 0.2 + 0.55 * f
     if (key.current) key.current.intensity = 2.6 * f
@@ -97,44 +102,57 @@ function ScaleRig() {
 // test hook: set progress within the current station and hold there
 ;(window as unknown as { __setU2: (u: number) => void }).__setU2 = (u: number) => usePath.getState().set({ u, from: u })
 
+/** The 3D world. Memoised so it never re-renders when the UI around it changes. */
+const World = memo(function World() {
+  return (
+    <Canvas flat dpr={[1, 1.75]} camera={{ position: [13950, 8500, 26300], fov: 34, near: 1, far: 400000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
+      <color attach="background" args={['#141519']} />
+      <hemisphereLight args={['#fff4e2', '#141519', 0.42]} />
+      <spotLight position={[10, 220, -20]} angle={0.9} penumbra={1} intensity={550} decay={2} color="#ffe8c6" />
+      <directionalLight position={[120, 40, -120]} intensity={0.5} color="#9db7ff" />
+      <Environment files="/hdri/studio.hdr" environmentIntensity={0.2} environmentRotation={[0, Math.PI * 0.75, 0]} />
+      {/* one continuous world: the fridge, with our readout chain and two others on its coldest plate */}
+      <Fridge />
+      <OurLines />
+      <OtherChains />
+      <StationQubit />
+      <StationAmp />
+      <StationIso />
+      <Clock />
+      <LookAround />
+      <ScaleRig />
+      <EffectComposer multisampling={4}>
+        <Bloom luminanceThreshold={1.0} intensity={0.6} radius={0.45} mipmapBlur />
+        <ToneMapping mode={ToneMappingMode.AGX} />
+        <Vignette offset={0.3} darkness={0.6} />
+      </EffectComposer>
+    </Canvas>
+  )
+})
+
 export function Path() {
-  const { station, beat, u, paused, qubit, set, next, back, replay, goStation } = usePath()
+  // subscribe only to what the UI shows, never to the per-frame clock
+  const station = usePath((s) => s.station)
+  const beat = usePath((s) => s.beat)
+  const paused = usePath((s) => s.paused)
+  const qubit = usePath((s) => s.qubit)
+  const running = usePath((s) => s.u < STATIONS[s.station].beats[s.beat].u - 1e-4)
+  const { set, next, back, replay, goStation } = usePath.getState()
   const S = STATIONS[station]
   const B = S.beats[beat]
-  const running = u < B.u - 1e-4
   const atEnd = station === BUILT - 1 && beat === S.beats.length - 1
   return (
     <div className="path">
-      <Canvas flat dpr={[1, 1.75]} camera={{ position: [13950, 8500, 26300], fov: 34, near: 1, far: 400000 }} gl={{ antialias: true, logarithmicDepthBuffer: true }}>
-        <color attach="background" args={['#141519']} />
-        <hemisphereLight args={['#fff4e2', '#141519', 0.42]} />
-        <spotLight position={[10, 220, -20]} angle={0.9} penumbra={1} intensity={550} decay={2} color="#ffe8c6" />
-        <directionalLight position={[120, 40, -120]} intensity={0.5} color="#9db7ff" />
-        <Environment files="/hdri/studio.hdr" environmentIntensity={0.2} environmentRotation={[0, Math.PI * 0.75, 0]} />
-        {/* one continuous world: the fridge, with both boxes on its coldest plate */}
-        <Fridge />
-        <OurLines />
-        <StationQubit />
-        <StationAmp />
-        <StationIso />
-        <Clock />
-        <LookAround />
-        <ScaleRig />
-        <EffectComposer multisampling={4}>
-          <Bloom luminanceThreshold={1.0} intensity={0.6} radius={0.45} mipmapBlur />
-          <ToneMapping mode={ToneMappingMode.AGX} />
-          <Vignette offset={0.3} darkness={0.6} />
-        </EffectComposer>
-      </Canvas>
+      <World />
 
       <div className="p-title">
         <span className="p-num">{station + 1}</span>
-        <h1>{S.name}</h1>
+        <h1>{S.beats.slice(0, beat + 1).reduce<string | undefined>((t, b) => b.title ?? t, undefined) ?? S.name}</h1>
       </div>
-      <p className="p-caption" key={station + '-' + beat}><Tex>{B.caption}</Tex></p>
+      <p className="p-caption" key={'cap-' + station + '-' + beat}><Tex>{B.caption}</Tex></p>
       <p className="p-hint">{paused ? 'Paused. Drag to look around, scroll to zoom.' : running ? '' : 'Drag to look around. Press Next when you’re ready.'}</p>
 
-      <TwistDial />
+      <Aside key={'aside-' + station + '-' + beat} station={station} beat={beat} />
 
       <footer className="p-bar">
         <div className="p-steps">

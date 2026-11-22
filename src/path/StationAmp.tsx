@@ -23,7 +23,7 @@ const RES_B: [number, number][] = RES_A.map(([x, z]) => [-x, z])
 const RES_C: [number, number][] = [[0, 0.4], [0, -3], [4.5, -3], [4.5, -5.5], [-4.5, -5.5], [-4.5, -8], [4.5, -8], [4.5, -10.5], [-4.5, -10.5], [-4.5, -13], [0, -13], [0, -15.5]]
 const PUMP: [number, number][] = [[0, 24], [0, 4.6]]
 
-function AmpChip() {
+export function AmpChip() {
   return (
     <group>
       <mesh position={[0, -0.6, 0]}><boxGeometry args={[50, 1.2, 50]} /><meshStandardMaterial {...GAP} /></mesh>
@@ -50,7 +50,7 @@ function AmpChip() {
   )
 }
 
-function AmpPackage() {
+export function AmpPackage({ lite = false }: { lite?: boolean } = {}) {
   const bonds: [[number, number, number], [number, number, number]][] = []
   for (const dz of [-1, 0, 1]) {
     bonds.push([[-23.6, 0.1, 4 + dz], [-30, 0.1, 4 + dz]])
@@ -76,7 +76,7 @@ function AmpPackage() {
       ))}
       <mesh position={[0, 0.2, 55]}><boxGeometry args={[6, 0.05, 50]} /><meshStandardMaterial color="#2a241b" /></mesh>
       <mesh position={[0, 0.28, 55]}><boxGeometry args={[2.6, 0.08, 50]} /><meshStandardMaterial {...GOLD} /></mesh>
-      {bonds.map(([a, b], i) => <Bond key={i} from={a} to={b} h={3} />)}
+      {!lite && bonds.map(([a, b], i) => <Bond key={i} from={a} to={b} h={3} />)}
       <mesh position={[0, -20, 0]}><boxGeometry args={[190, 10, 190]} /><meshStandardMaterial color="#9c5f35" metalness={1} roughness={0.4} /></mesh>
       {[[0, 92, 190, 8], [0, -92, 190, 8], [92, 0, 8, 176], [-92, 0, 8, 176]].map(([x, z, w, d], i) => (
         <mesh key={i} position={[x, -4, z]}><boxGeometry args={[w, 22, d]} /><meshStandardMaterial color="#9c5f35" metalness={1} roughness={0.4} /></mesh>
@@ -164,13 +164,19 @@ export function StationAmp() {
   }), [fwd, det, nin, ndr])
   const vis = useRef(1)
 
-  // forward pulse: arrive at the ring, cross it while the detour copy runs, then leave through b
+  // forward pulse at one steady speed V everywhere except inside the ring, where it lingers while it is
+  // amplified (a real pulse dwells in the resonators). It drifts off the chip at the end of the "add" step,
+  // and in the last step it is seen again leaving through the output connector, at the same speed.
+  const V = L.ringIn / 0.22
   const fwdArc = (u: number) => {
     if (!here() || u < 0.08) return -999
-    if (u < 0.3) return ((u - 0.08) / 0.22) * L.ringIn
+    if (u < 0.3) return (u - 0.08) * V
     if (u < 0.48) return L.ringIn + ((u - 0.3) / 0.18) * (L.resB - L.ringIn)
-    return L.resB + ((u - 0.48) / 0.12) * (L.fwd - L.resB)
+    if (u < 0.58) return L.resB + (u - 0.48) * V
+    if (u < 0.86) return -999
+    return L.resB + 0.1 * V + (u - 0.86) * V
   }
+  const fade = (u: number) => (u < 0.58 ? 1 - seg(u, 0.55, 0.58) : u > 0.86 ? seg(u, 0.86, 0.88) : 0)
   const detArc = (u: number) => (!here() || u < 0.3 || u > 0.5 ? -999 : ((u - 0.3) / 0.18) * L.det)
   const ninArc = (u: number) => (!here() || u < 0.6 ? -999 : ((u - 0.6) / 0.22) * L.nin)
   const ndrArc = (u: number) => { const a = ninArc(u); return a < L.ringNoise ? -999 : a - L.ringNoise }
@@ -186,7 +192,7 @@ export function StationAmp() {
       lift: (a) => fwdR(a) * 1.05 * (1 - inConn(a)),
       center: () => fwdArc(ampU(stationU())), width: 4, pitch: 3.2,
       // 20 dB of power gain is 10x in amplitude; drawn as ~3.5x so it stays on screen
-      radius: (a) => { const k = inConn(a), r = fwdR(a); return r * (1 - k) + Math.min(r, 6) * k },
+      radius: (a) => { const k = inConn(a), r = fwdR(a); return (r * (1 - k) + Math.min(r, 6) * k) * fade(ampU(stationU())) },
       twist,
     }
     const detSpec: TrailSpec = { center: () => detArc(ampU(stationU())), width: 3, pitch: 3.2, radius: () => vis.current * 0.9, twist }
@@ -212,7 +218,7 @@ export function StationAmp() {
     twist: () => READOUT_PHASE[usePath.getState().qubit],
   }), [cableLen])
 
-  const tmp = useMemo(() => ({ p: new THREE.Vector3(), c: new THREE.Vector3(), s1: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot }), [])
+  const tmp = useMemo(() => ({ p: new THREE.Vector3(), n: new THREE.Vector3(), c: new THREE.Vector3(), s1: { pos: new THREE.Vector3(), look: new THREE.Vector3() } as Shot }), [])
   const off = (x: number, y: number, z: number) => new THREE.Vector3(x + X_AMP, y, z)
   useFrame((_, dt) => {
     const su = stationU(), u = ampU(su)
@@ -228,6 +234,13 @@ export function StationAmp() {
     ]
     let shot = blendShots(K[0], K[1], seg(u, 0.06, 0.2))
     shot = blendShots(shot, K[2], seg(u, 0.5, 0.6))
+    // follow the noise in from the output connector, then settle back over the ring for the cancelling
+    const na = Math.max(0, Math.min(L.nin, ninArc(u)))
+    nin.getPointAt(na / L.nin, tmp.n)
+    tmp.n.x += X_AMP
+    const far = 1 + 2.2 * seg(tmp.n.x - X_AMP, 20, 90) // wider while the noise is still out on the board
+    const noiseChase: Shot = { look: tmp.n.clone(), pos: tmp.n.clone().add(new THREE.Vector3(10, 16, 22).multiplyScalar(far)) }
+    shot = blendShots(shot, noiseChase, seg(u, 0.58, 0.63) * (1 - seg(u, 0.76, 0.82)))
     shot = blendShots(shot, K[3], seg(u, 0.86, 0.98))
     // the cable ride: from where station 1 ended, up to a view of both boxes, then down to the amplifier box
     if (su < 0.1) {
@@ -264,7 +277,8 @@ export function StationAmp() {
         <Label open pos={[6, 0.5, -9]}>Mode c</Label>
         <Label open pos={[2.4, 0.6, 2]}>Josephson ring</Label>
       </>}
-      {beat >= 5 && beat <= 6 && <>
+      {beat === 5 && <Label open pos={[118, 6, 8]}>Noise coming down from the HEMT</Label>}
+      {beat === 6 && <>
         <Label open pos={[6, 0.5, -9]}>Mode c</Label>
         <Label open pos={[3.5, 0.5, -18.2]}>On-chip resistor</Label>
       </>}
