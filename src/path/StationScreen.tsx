@@ -37,7 +37,7 @@ const MIX_Y = 9222, DIG_Y = 8145
 // fridge output -> mixer RF in; mixer I and Q outs -> digitizer channels; digitizer data -> FPGA -> monitor
 // on a 2U panel the jacks sit on the lower row, 183 units below the panel's centre
 const JACK_DROP = 183
-const GEN_OUT: V = [26600, GEN_Y - JACK_DROP, FRONT + 60]
+const GEN_OUT: V = [27200, GEN_Y - JACK_DROP, FRONT + 60]
 const SPLIT = { x: 26800, y: RACK.top + 160, z: 3600 } // power splitter sitting on the rack's roof
 const RF_IN: V = [23500, MIX_Y, FRONT + 60]
 const LO_IN: V = [26000, MIX_Y, FRONT + 60]
@@ -53,7 +53,7 @@ const ROUTE: V[] = [
   [16000, 14000, 4200], [21800, 13400, 6300], [22350, 12200, 6400], [22350, 10000, 6400], [22500, MIX_Y + 250, 6350], [23300, MIX_Y + 40, FRONT + 300], RF_IN,
 ]
 // generator to splitter (up the rack's right edge), splitter to the fridge's input on the top flange
-const GEN_TO_SPLIT: V[] = [GEN_OUT, [26600, GEN_Y - JACK_DROP, FRONT + 400], [27500, GEN_Y + 300, FRONT + 500], [27600, RACK.top + 400, 4600], [27300, SPLIT.y, SPLIT.z], [27100, SPLIT.y, SPLIT.z]]
+const GEN_TO_SPLIT: V[] = [GEN_OUT, [27200, GEN_Y - JACK_DROP, FRONT + 400], [27620, GEN_Y + 300, FRONT + 500], [27600, RACK.top + 400, 4600], [27300, SPLIT.y, SPLIT.z], [27100, SPLIT.y, SPLIT.z]]
 const SPLIT_TO_FRIDGE: V[] = [[26500, SPLIT.y, SPLIT.z - 120], [26100, SPLIT.y + 200, SPLIT.z - 300], [24000, 14200, 2600], [14000, 14600, 2400], [2000, 14400, -200], [-282, 13200, 0], [-282, TOP, 0]]
 /** The pulse's whole route at room temperature: out of the generator, through the splitter, to the fridge. */
 export const TO_FRIDGE: V[] = [...GEN_TO_SPLIT, ...SPLIT_TO_FRIDGE]
@@ -108,6 +108,9 @@ function Instrument({ y, u, knobs = 0, jacks = [] as number[], leds = 0, face, k
       <mesh position={[cx, y, FRONT - 3000]}><boxGeometry args={[w - 200, h, 6000]} /><meshStandardMaterial {...PANEL} /></mesh>
       <mesh position={[cx, y, FRONT]}><boxGeometry args={[w, h, 60]} /><meshStandardMaterial color="#2a2c30" metalness={0.5} roughness={0.5} /></mesh>
       {tex && <mesh position={[cx, y, FRONT + 31]}><planeGeometry args={[w, h]} /><meshStandardMaterial map={tex} roughness={0.6} metalness={0.1} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.18} /></mesh>}
+      {[cx - w / 2 + 90, cx + w / 2 - 90].flatMap((x) => [y - h / 2 + 90, y + h / 2 - 90].map((yy) => (
+        <mesh key={x + '-' + yy} position={[x, yy, FRONT + 33]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[42, 42, 12, 16]} /><meshStandardMaterial color="#9a9da3" metalness={0.8} roughness={0.35} /></mesh>
+      )))}
       {knobAt && <mesh position={[knobAt[0], knobAt[1], FRONT + 100]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[190, 200, 140, 32]} /><meshStandardMaterial color="#1b1c1f" metalness={0.3} roughness={0.45} /></mesh>}
       {Array.from({ length: knobs }, (_, i) => (
         <mesh key={i} position={[cx + 400 + i * 520, y, FRONT + 90]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[150, 150, 120, 24]} /><meshStandardMaterial color="#1b1c1f" roughness={0.6} /></mesh>
@@ -127,29 +130,41 @@ const jackRing = (g: CanvasRenderingContext2D, x: number, y: number) => { g.stro
 
 /** A microwave signal generator: display with frequency and power, soft keys, keypad, knob, RF output. */
 const genFace: Face = (g, _W, H, toX) => {
-  label(g, 'Microwave signal generator, 100 kHz to 20 GHz', 40, 46, 26, '#9aa0aa', 'left')
-  g.fillStyle = '#0d2533'; g.fillRect(40, 70, 760, H - 110)
-  label(g, '7.245 000 000 GHz', 70, 165, 64, '#8fe3ff', 'left')
-  label(g, '-20.00 dBm', 70, 235, 44, '#8fe3ff', 'left')
-  g.fillStyle = '#2f7a4a'; g.fillRect(560, 205, 200, 44); label(g, 'RF ON', 660, 238, 28, '#d8ffe6')
-  for (let i = 0; i < 5; i++) { g.fillStyle = '#3b3f46'; g.fillRect(830, 74 + i * 46, 120, 36) }
+  // laid out like a real benchtop/rack generator: display, soft keys, keypad, knob, then the output section
+  label(g, 'Microwave signal generator', 110, 46, 26, '#c9ccd3', 'left')
+  label(g, '100 kHz to 20 GHz', 470, 46, 22, '#8d93a0', 'left')
+  g.fillStyle = '#0d2533'; g.fillRect(100, 70, 640, H - 110)
+  label(g, 'FREQUENCY', 124, 104, 18, '#6fb6d4', 'left')
+  label(g, '7.245 000 000 GHz', 124, 160, 56, '#8fe3ff', 'left')
+  label(g, 'AMPLITUDE', 124, 200, 18, '#6fb6d4', 'left')
+  label(g, '-20.00 dBm', 124, 248, 40, '#8fe3ff', 'left')
+  g.fillStyle = '#2f7a4a'; g.fillRect(560, 214, 160, 40); label(g, 'RF ON', 640, 243, 24, '#d8ffe6')
+  // soft keys beside the display
+  for (let i = 0; i < 5; i++) { g.fillStyle = '#3b3f46'; g.fillRect(760, 74 + i * 46, 110, 36) }
   // keypad
   const keys = ['7', '8', '9', 'GHz', '4', '5', '6', 'MHz', '1', '2', '3', 'kHz', '0', '.', '-', 'Enter']
-  keys.forEach((k, i) => { const x = 1010 + (i % 4) * 84, y = 70 + Math.floor(i / 4) * 58; g.fillStyle = '#41454d'; g.fillRect(x, y, 74, 48); label(g, k, x + 37, y + 33, k.length > 2 ? 18 : 26, '#dfe2e7') })
-  label(g, 'FREQ', 1420, 100, 22); label(g, 'AMPL', 1420, 160, 22); label(g, 'RF ON/OFF', 1420, 220, 22)
-  const jx = toX(GEN_OUT[0]); jackRing(g, jx, H - 92); label(g, 'RF OUTPUT', jx, H - 150, 24)
-  g.fillStyle = '#7cff9a'; g.beginPath(); g.arc(jx + 120, H - 92, 10, 0, Math.PI * 2); g.fill()
+  keys.forEach((k, i) => { const x = 920 + (i % 4) * 82, y = 70 + Math.floor(i / 4) * 58; g.fillStyle = '#41454d'; g.fillRect(x, y, 72, 48); label(g, k, x + 36, y + 33, k.length > 2 ? 17 : 26, '#dfe2e7') })
+  // knob well (the knob itself is 3D)
+  const kx = toX(26230); g.fillStyle = '#24272b'; g.beginPath(); g.arc(kx, H / 2 - 8, 92, 0, Math.PI * 2); g.fill()
+  // output section: hard keys and the RF output jack
+  const hk = ['FREQ', 'AMPL', 'MOD', 'RF ON/OFF']
+  hk.forEach((t, i) => { const x = 1600, y = 70 + i * 52; g.fillStyle = '#41454d'; g.fillRect(x, y, 140, 42); label(g, t, x + 70, y + 28, 18, '#dfe2e7') })
+  const jx = toX(GEN_OUT[0]); jackRing(g, jx, H - 92); label(g, 'RF OUTPUT', jx, H - 150, 22)
+  label(g, '50 \u03a9', jx, H - 30, 18, '#8d93a0')
+  g.fillStyle = '#7cff9a'; g.beginPath(); g.arc(jx + 80, H - 150, 9, 0, Math.PI * 2); g.fill()
+  // power switch
+  g.fillStyle = '#41454d'; g.fillRect(110, H - 34, 60, 22)
 }
 /** An IQ mixer: RF in, LO (reference) in, I and Q out. */
 const mixFace: Face = (g, _W, H, toX) => {
-  label(g, 'IQ mixer', 40, H / 2 + 10, 30, '#9aa0aa', 'left')
+  label(g, 'IQ mixer', 110, H / 2 + 10, 30, '#9aa0aa', 'left')
   for (const [x, t] of [[RF_IN[0], 'RF in'], [I_OUT[0], 'I out'], [Q_OUT[0], 'Q out'], [LO_IN[0], 'LO in (reference)']] as const) {
     const cx = toX(x); jackRing(g, cx, H / 2); label(g, t, cx + 46, H / 2 + 9, 22, '#c9ccd3', 'left')
   }
 }
 /** A two-channel digitizer: inputs, a small trace display, data out to the FPGA. */
 const digFace: Face = (g, _W, H, toX) => {
-  label(g, 'Digitizer, 2 channels, 1 billion samples per second', 40, 46, 26, '#9aa0aa', 'left')
+  label(g, 'Digitizer, 2 channels, 1 billion samples per second', 110, 46, 26, '#9aa0aa', 'left')
   for (const [x, t] of [[CH1[0], 'CH1  I'], [CH2[0], 'CH2  Q']] as const) { const cx = toX(x); jackRing(g, cx, H - 92); label(g, t, cx, H - 150, 22) }
   g.fillStyle = '#0d2533'; g.fillRect(1120, 70, 520, H - 110)
   g.strokeStyle = '#8fe3ff'; g.lineWidth = 3; g.beginPath()
@@ -205,7 +220,7 @@ function Lab() {
       ))}
       <mesh position={[rackCx, RACK.top - 100, rackCz]}><boxGeometry args={[RACK.x1 - RACK.x0, 200, RACK.z1 - RACK.z0]} /><meshStandardMaterial color="#141517" roughness={0.6} /></mesh>
       {[RACK.x0 + 40, RACK.x1 - 40].map((x) => <mesh key={x} position={[x, (FLOOR + RACK.top) / 2, rackCz]}><boxGeometry args={[80, RACK.top - FLOOR, RACK.z1 - RACK.z0]} /><meshStandardMaterial color="#1b1c1f" roughness={0.7} /></mesh>)}
-      <Instrument y={GEN_Y} u={2} jacks={[GEN_OUT[0]]} face={genFace} knobAt={[25350, GEN_Y - 60]} />
+      <Instrument y={GEN_Y} u={2} jacks={[GEN_OUT[0]]} face={genFace} knobAt={[26230, GEN_Y + 20]} />
       <Instrument y={MIX_Y} u={1} jacks={[RF_IN[0], I_OUT[0], Q_OUT[0], LO_IN[0]]} face={mixFace} />
       <Instrument y={DIG_Y} u={2} jacks={[CH1[0], CH2[0], DATA_OUT[0]]} face={digFace} />
       {/* FPGA board on an open shelf: a green circuit board with the FPGA chip under a finned heatsink */}

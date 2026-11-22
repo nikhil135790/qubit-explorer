@@ -119,7 +119,8 @@ export function StationDown() {
     if (u < 0.05) target = fridgeShot(seg(u, 0, 0.05), tmp.c)
     else if (u < 0.2) target = blendShots(fridgeShot(1, tmp.a), K.gen, seg(u, 0.05, 0.18), tmp.c)
     else {
-      const a = Math.max(0, arcAt(Math.min(u, 0.8)))
+      // the camera follows where the pulse is, even after it is hidden on arrival at the chip
+      const a = u >= 0.8 ? L.chip : Math.max(0, arcAt(u))
       route.getPointAt(Math.min(1, a / L.len), tmp.p)
       const p = tmp.p
       // along the room-temperature cable: from the side and above

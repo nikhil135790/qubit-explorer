@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { Package } from './StationQubit'
 import { AmpPackage } from './StationAmp'
 import { Isolator } from './StationIso'
+import { OtherHemt } from './StationHemt'
 import { Rect, GAP, FILM, Y_GROUND } from '../journey/Chip'
 
 /**
@@ -40,8 +41,9 @@ const AMP_OUT: V[] = [[1003, 0.6, 4], [1055, 0.6, 4], [1080, 8, 4], [1094, 40, 4
 function Chain({ at, iso }: { at: V; iso: boolean }) {
   const curves = useMemo(() => {
     const c = [tube(shift(CABLE, at), false), tube(shift(INPUT, at))]
-    if (iso) c.push(tube(shift(TO_ISO, at), false), tube(shift(ISO_OUT, at)))
-    else c.push(tube(shift(AMP_OUT, at)))
+    // outputs climb to the 4 K plate, where each experiment has its own HEMT
+    if (iso) c.push(tube(shift(TO_ISO, at), false), tube(shift([...ISO_OUT, [1534, 6262, 226]], at), false))
+    else c.push(tube(shift([...AMP_OUT, [1096, 6262, 4]], at), false))
     return c
   }, [at, iso])
   return (
@@ -52,6 +54,8 @@ function Chain({ at, iso }: { at: V; iso: boolean }) {
         <group position={[900, 0, 0]}><AmpPackage lite /></group>
         {iso && <Isolator closed />}
       </group>
+      {/* its HEMT on the 4 K plate, placed so its input sits on this experiment's output line */}
+      <OtherHemt off={iso ? at : [at[0] + 1096 - 1534, 0, at[2] + 4 - 226]} />
       {curves.map((c, i) => (
         <mesh key={i}><tubeGeometry args={[c, 200, 10, 12, false]} /><meshStandardMaterial color="#c8c8c6" metalness={1} roughness={0.28} /></mesh>
       ))}

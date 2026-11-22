@@ -62,6 +62,60 @@ function Sma({ x, dir }: { x: number; dir: 1 | -1 }) {
 
 const STRIP = { color: '#e0b468', metalness: 0.6, roughness: 0.3 }
 
+const labelTex = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas'); c.width = 880; c.height = 176
+  const g = c.getContext('2d')!
+  g.fillStyle = '#e9e4d6'; g.fillRect(0, 0, 880, 176)
+  g.fillStyle = '#1b1c1f'; g.font = '600 46px "IBM Plex Sans", sans-serif'; g.fillText('Cryogenic low noise amplifier', 30, 70)
+  g.font = '36px "IBM Plex Sans", sans-serif'; g.fillText('4 to 8 GHz    gain 40 dB    IN \u2192 OUT', 30, 135)
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t
+})()
+
+/** A closed HEMT module like ours, for the other experiments' lines: lid on, label, connectors, power wiring. */
+function ClosedHemt() {
+  const { x0, x1, z0, z1, h } = BOX
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2
+  return (
+    <group>
+      <mesh position={[cx, Y + h / 2, cz]}><boxGeometry args={[x1 - x0, h, z1 - z0]} /><meshStandardMaterial {...GOLD} /></mesh>
+      {[[x0 + 8, z0 + 8], [x1 - 8, z0 + 8], [x0 + 8, z1 - 8], [x1 - 8, z1 - 8], [cx, z0 + 8], [cx, z1 - 8]].map(([x, z], i) => (
+        <mesh key={i} position={[x, Y + h + 1, z]}><cylinderGeometry args={[5, 5, 2, 12]} /><meshStandardMaterial color="#9a9690" metalness={1} roughness={0.3} /></mesh>
+      ))}
+      <mesh position={[cx + 40, Y + 42, z1 + 0.6]}><planeGeometry args={[150, 30]} /><meshStandardMaterial map={labelTex} color="#8f8a7e" roughness={0.9} /></mesh>
+      <mesh position={[cx, Y + 60, z0 - 14]}><boxGeometry args={[110, 34, 28]} /><meshStandardMaterial color="#1e1e20" roughness={0.6} /></mesh>
+      <mesh position={[cx, (Y + 77 + 8795) / 2, z0 - 20]}><cylinderGeometry args={[9, 9, 8795 - Y - 77, 12]} /><meshStandardMaterial color="#6a4a2b" roughness={0.75} /></mesh>
+      <Sma x={x0} dir={-1} />
+      <Sma x={x1} dir={1} />
+    </group>
+  )
+}
+
+/** Copper clamp where a coax line passes the 4 K plate, cooling the line to the plate's temperature. */
+function Clamp({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x, Y, z]}>
+      <mesh position={[0, 22, 0]}><boxGeometry args={[70, 44, 70]} /><meshStandardMaterial color="#b4703f" metalness={1} roughness={0.35} /></mesh>
+      {[-24, 24].map((dx) => <mesh key={dx} position={[dx, 46, 0]}><cylinderGeometry args={[6, 6, 6, 6]} /><meshStandardMaterial color="#9a9690" metalness={1} roughness={0.3} /></mesh>)}
+    </group>
+  )
+}
+
+/** The same HEMT set-up for another experiment, shifted to sit on that experiment's line. */
+export function OtherHemt({ off }: { off: [number, number, number] }) {
+  const cin = useMemo(() => v3(COAX_IN), [])
+  const cout = useMemo(() => v3(COAX_OUT), [])
+  return (
+    <group position={off}>
+      <mesh><tubeGeometry args={[cin, 60, 10, 12, false]} /><meshStandardMaterial color="#c8c8c6" metalness={1} roughness={0.28} /></mesh>
+      <mesh><tubeGeometry args={[cout, 200, 10, 12, false]} /><meshStandardMaterial color="#c8c8c6" metalness={1} roughness={0.28} /></mesh>
+      <Clamp x={1534} z={226} />
+      <Clamp x={1972} z={226} />
+      <ClosedHemt />
+    </group>
+  )
+}
+
 function HemtBox() {
   const { x0, x1, z0, z1, h } = BOX
   const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, W = 16
@@ -77,7 +131,23 @@ function HemtBox() {
         <mesh key={i} position={[x, Y + h + 0.3, z]}><cylinderGeometry args={[4, 4, 0.6, 16]} /><meshStandardMaterial color="#1b1208" /></mesh>
       ))}
       {/* ceramic circuit board */}
-      <mesh position={[cx, Y + 25 + 3, Z]}><boxGeometry args={[x1 - x0 - 2 * W, 6, 120]} /><meshStandardMaterial color="#6f6a61" roughness={0.75} /></mesh>
+      <mesh position={[cx, Y + 25 + 3, Z]}><boxGeometry args={[x1 - x0 - 2 * W, 6, 120]} /><meshStandardMaterial color="#bdb6a8" roughness={0.85} /></mesh>
+      {/* gold ground on both sides of the signal line (gaps left where the power lines cross), and rows of vias */}
+      <mesh position={[cx, RF - 3.3, Z + 34]}><boxGeometry args={[x1 - x0 - 2 * W, 0.6, 52]} /><meshStandardMaterial {...STRIP} roughness={0.45} /></mesh>
+      {[[x0 + W, 1684], [1696, 1754], [1766, 1824], [1836, x1 - W]].map(([a, b], i) => (
+        <mesh key={'g' + i} position={[(a + b) / 2, RF - 3.3, Z - 34]}><boxGeometry args={[b - a, 0.6, 52]} /><meshStandardMaterial {...STRIP} roughness={0.45} /></mesh>
+      ))}
+      {Array.from({ length: 22 }, (_, i) => x0 + W + 8 + i * 12).flatMap((x) => [Z + 50, Z - 50].map((z) => (
+        STAGES.some((sx) => Math.abs(sx - x) < 7) && z < Z ? null :
+        <mesh key={x + '-' + z} position={[x, RF - 2.9, z]}><cylinderGeometry args={[1.6, 1.6, 0.3, 10]} /><meshStandardMaterial color="#3a3226" /></mesh>
+      )))}
+      {/* surface-mount resistors on each transistor's power line */}
+      {STAGES.map((x) => (
+        <group key={'r' + x} position={[x, RF - 1.5, Z - 26]}>
+          <mesh><boxGeometry args={[4, 2.2, 7]} /><meshStandardMaterial color="#1a1a1c" roughness={0.5} /></mesh>
+          {[-3.2, 3.2].map((dz) => <mesh key={dz} position={[0, 0, dz]}><boxGeometry args={[4.2, 2.3, 1.4]} /><meshStandardMaterial color="#cfd2d6" metalness={0.8} roughness={0.3} /></mesh>)}
+        </group>
+      ))}
       {/* signal strip, broken by the three transistors and the coupling capacitors between them */}
       {[[x0 + W, 1678], [1702, 1748], [1772, 1818], [1842, x1 - W]].map(([a, b], i) => (
         <mesh key={i} position={[(a + b) / 2, RF - 3, Z]}><boxGeometry args={[b - a, 1.5, 8]} /><meshStandardMaterial {...STRIP} /></mesh>
@@ -98,6 +168,8 @@ function HemtBox() {
           <mesh position={[x - 8, RF + 0.5, Z - 40]}><boxGeometry args={[8, 5, 8]} /><meshStandardMaterial color="#c9b48a" roughness={0.5} /></mesh>
         </group>
       ))}
+      {/* printed label on the front wall */}
+      <mesh position={[cx + 40, Y + 42, z1 + 0.6]}><planeGeometry args={[150, 30]} /><meshStandardMaterial map={labelTex} color="#8f8a7e" roughness={0.9} /></mesh>
       {/* DC connector for the transistor power on the back wall, and its wiring heading up */}
       <mesh position={[cx, Y + 60, z0 - 14]}><boxGeometry args={[110, 34, 28]} /><meshStandardMaterial color="#1e1e20" roughness={0.6} /></mesh>
       {[-30, -10, 10, 30].map((dx) => <mesh key={dx} position={[cx + dx, Y + 60, z0 - 28.5]}><cylinderGeometry args={[2.5, 2.5, 1, 10]} /><meshStandardMaterial {...GOLD} /></mesh>)}
@@ -200,6 +272,8 @@ export function StationHemt() {
       <SeeThrough curve={coaxIn} r={10} />
       <SeeThrough curve={coaxOut} r={10} />
       <HemtBox />
+      <Clamp x={1534} z={Z} />
+      <Clamp x={1972} z={Z} />
       <PulseTrail curve={fwd} spec={specs.fwdSpec} />
       <PulseTrail curve={noise} spec={specs.noiseSpec} color="#ff5a64" width={2.2} />
       {beat === 0 && <Label open pos={[1534, 3200, Z]}>Superconducting coax</Label>}

@@ -101,7 +101,7 @@ const clear = (x: number, z: number) =>
   Math.hypot(x - FR.cx, z - FR.cz) < 470 || Math.hypot(x - FR.cx, z - FR.cz) > 1990
 
 /** Semi-rigid coax lines from the top flange down to the bottom plate, with an attenuator at each stage. */
-const LINE_ANGLES = Array.from({ length: 15 }, (_, i) => 198 + i * 10.5)
+const LINE_ANGLES = Array.from({ length: 15 }, (_, i) => 198 + i * 10)
 
 export function Fridge() {
   const settled = useSettled()
