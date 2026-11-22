@@ -21,7 +21,7 @@ function Box({ title, children, note }: { title: string; children?: ReactNode; n
 /** Animation clock for the drawings, frozen while paused. */
 const useT = () => usePath((s) => Math.floor(s.time * 30) / 30)
 
-// ---------- reading the twist ----------
+// ---------- reading the phase ----------
 const R = 70
 const tip = (d: number) => [R * Math.cos((d * Math.PI) / 180), -R * Math.sin((d * Math.PI) / 180)]
 const hash = (i: number) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x) }
@@ -43,7 +43,7 @@ function Dial({ k = 1, sig = 0, size = 200, tq = 0, legend = true }: { k?: numbe
     <svg viewBox="-95 -100 230 200" width={size} height={size * 0.87} aria-hidden>
       <circle r={R} fill="none" stroke="#3a3d45" />
       <line x1={0} y1={0} x2={R + 16} y2={0} stroke={DIM} strokeDasharray="3 4" />
-      {legend && <text x={R - 2} y={14} className="d-ref">untwisted copy</text>}
+      {legend && <text x={R - 2} y={14} className="d-ref">reference</text>}
       {sig > 0 && cloud(other, cOther, true)}
       {sig > 0 && cloud(me, cMe, false)}
       <line x1={0} y1={0} x2={ox} y2={oy} stroke={cOther} strokeOpacity={0.35} strokeWidth={1.5} />
@@ -61,7 +61,7 @@ function TwistBox() {
   // the arrow swings while the pulse passes the resonator
   const k = usePath((s) => seg(s.u, STATIONS[0].beats[5].u, STATIONS[0].beats[6].u - 0.04))
   return (
-    <Box title="Reading the twist" note="We compare the returning pulse with an untwisted copy of the wave we sent in. Twisted up means the qubit is 1, twisted down means it is 0.">
+    <Box title="Reading the phase" note="We compare the returning pulse with a reference wave split off from the one we sent in. A phase $45^\circ$ ahead of the reference means the qubit is 1, and $45^\circ$ behind means it is 0.">
       <Dial k={k} />
     </Box>
   )
@@ -70,7 +70,7 @@ function TwistBox() {
 function WhyAmplify() {
   const tq = usePath((s) => Math.floor(s.time * 6))
   return (
-    <Box title="Why we need an amplifier" note="Each dot is one try at reading the twist. Our pulse is only a few photons, and the HEMT amplifier further up adds random jitter worth about a dozen photons, so the dots for 0 and 1 overlap and we would often guess wrong.">
+    <Box title="Why we need an amplifier" note="Each dot is one try at measuring the phase. Our pulse is only a few photons, and the HEMT amplifier further up adds random jitter worth about a dozen photons, so the dots for 0 and 1 overlap and we would often guess wrong.">
       <Dial sig={0.72} tq={tq} />
     </Box>
   )
@@ -238,33 +238,45 @@ function WhatHemt() {
   )
 }
 
-/** Signal and noise, in photons, before and after the directional amplifier, when the HEMT adds its 12. */
+/**
+ * The order of amplifiers, shown as what comes out: our wave plus noise. Each amplifier adds its own
+ * fixed amount of noise. Numbers from our model: pulse 4, quantum noise 0.5, directional amp gain 100
+ * adding 0.5, HEMT adding 12, so the wave is 0.57x the noise (amplitude) with the HEMT alone and 1.9x
+ * with the directional amplifier first.
+ */
 function QuietFirst() {
-  // numbers from our model: pulse ~4 photons, unavoidable quantum noise 0.5, directional amp adds 0.5, gain 100, HEMT adds ~12
-  const rows: { name: string; sig: number; early: number; hemt: number }[] = [
-    { name: 'HEMT alone', sig: 4, early: 0.5, hemt: 12 },
-    { name: 'Directional amplifier, then HEMT', sig: 400, early: 100, hemt: 12 },
-  ]
+  const tq = usePath((s) => Math.floor(s.time * 12))
+  const trace = (y0: number, sig: number, noise: number) => {
+    let d = ''
+    for (let i = 0; i <= 90; i++) {
+      const x = 10 + i * 2.3
+      const n = (hash(i * 13 + tq * 101) - 0.5) * 2 + (hash(i * 7 + tq * 37 + 5) - 0.5)
+      d += (i ? 'L' : 'M') + x.toFixed(1) + ',' + (y0 - sig * Math.sin(i * 0.28) - noise * n).toFixed(1)
+    }
+    return d
+  }
+  const stage = (x: number, y: number, w: number, label: string, c: string) => (
+    <g><rect x={x} y={y} width={w} height={18} rx={3} fill="#1b1d23" stroke={c} /><text x={x + w / 2} y={y + 12.5} textAnchor="middle" className="d-ref" fill={INK}>{label}</text></g>
+  )
   return (
-    <Box title="Why the order matters" note="Photon counts measure energy, so 4 photons of signal means the pulse carries the energy of about 4 microwave photons, and 12 photons of noise means the HEMT adds random energy worth about 12. Boost the pulse 100 times first and the HEMT's 12 is small next to it.">
-      <svg viewBox="0 0 230 128" width="220" height="122" aria-hidden>
-        {rows.map((r, i) => {
-          const noise = r.early + r.hemt
-          const max = Math.max(r.sig, noise) * 1.15, W = 200 // each row drawn to its own scale
-          const y = 8 + i * 60
-          return (
-            <g key={r.name}>
-              <text x={10} y={y + 8} className="d-ref" fill={INK}>{r.name}</text>
-              <rect x={10} y={y + 14} width={(r.sig / max) * W} height={10} fill={GOLD} />
-              <text x={14 + (r.sig / max) * W} y={y + 23} className="d-ref">{'signal ' + r.sig}</text>
-              <rect x={10} y={y + 28} width={Math.max(2, (r.early / max) * W)} height={10} fill="#8d877b" />
-              <rect x={10 + Math.max(2, (r.early / max) * W)} y={y + 28} width={Math.min(W, (r.hemt / max) * W)} height={10} fill={RED} />
-              <text x={14 + Math.min(W, (noise / max) * W)} y={y + 37} className="d-ref">{'noise ' + noise}</text>
-            </g>
-          )
-        })}
+    <Box title="Why the order matters" note="Every amplifier adds its own noise. The HEMT adds a lot, so if our faint pulse reaches it first, the noise swamps it. The directional amplifier adds almost none, so putting it first makes the pulse 100 times stronger before the HEMT's noise joins in.">
+      <svg viewBox="0 0 230 200" width="220" height="191" aria-hidden>
+        <text x={10} y={10} className="d-ref" fill={INK}>HEMT alone</text>
+        {stage(10, 16, 46, 'pulse', '#4a4e58')}
+        <text x={60} y={29} className="d-ref">to</text>
+        {stage(72, 16, 50, 'HEMT', RED)}
+        <path d={trace(62, 6, 10)} stroke="#cfc8ba" strokeWidth={1.2} fill="none" />
+        <text x={10} y={92} className="d-ref">our wave is lost in the noise</text>
+
+        <text x={10} y={112} className="d-ref" fill={INK}>Directional amplifier first</text>
+        {stage(10, 118, 46, 'pulse', '#4a4e58')}
+        <text x={60} y={131} className="d-ref">to</text>
+        {stage(72, 118, 84, 'directional amp', GOLD)}
+        <text x={160} y={131} className="d-ref">to</text>
+        {stage(172, 118, 50, 'HEMT', RED)}
+        <path d={trace(168, 19, 6)} stroke={GOLD} strokeWidth={1.2} fill="none" />
+        <text x={10} y={198} className="d-ref">our wave stands clear of it</text>
       </svg>
-      <div className="d-key"><i style={{ background: '#8d877b' }} />quantum noise, amplified with the pulse <i style={{ background: RED }} />HEMT noise</div>
     </Box>
   )
 }
@@ -275,20 +287,35 @@ function MixerBox() {
     <g><rect x={x} y={y} width={w} height={22} rx={3} fill="#1b1d23" stroke={c} /><text x={x + w / 2} y={y + 15} textAnchor="middle" className="d-ref" fill={INK}>{label}</text></g>
   )
   return (
-    <Box title="Comparing with the reference" note="The generator's tone is split in two. One half goes down to the qubit and comes back twisted, the other half stays here as the reference, and the mixer measures the twist between them as $I$ and $Q$.">
+    <Box title="What I and Q are" note="The returning wave is $A\cos(\omega t + \phi)$. The mixer multiplies it by the reference and by the reference delayed a quarter cycle, giving $I = A\cos\phi$, the part in step with the reference, and $Q = A\sin\phi$, the part a quarter cycle off. The phase $\phi$ is then the angle of the point $(I, Q)$.">
       <svg viewBox="0 0 230 150" width="220" height="143" aria-hidden>
         {box(8, 8, 100, 'generator')}
         {box(130, 8, 92, 'down to qubit', '#6b7280')}
         <line x1={108} y1={19} x2={130} y2={19} stroke={GOLD} strokeWidth={1.6} />
         <line x1={58} y1={30} x2={58} y2={74} stroke={GOLD} strokeWidth={1.6} strokeDasharray="4 3" />
         <text x={62} y={56} className="d-ref">reference</text>
-        {box(130, 48, 92, 'back, twisted', '#6b7280')}
+        {box(130, 48, 92, 'back, phase shifted', '#6b7280')}
         <line x1={176} y1={70} x2={176} y2={78} stroke={GOLD} strokeWidth={1.6} />
         <path d="M58,74 L58,90 L110,90" stroke={GOLD} strokeWidth={1.6} fill="none" strokeDasharray="4 3" />
         <path d="M176,78 L176,90 L150,90" stroke={GOLD} strokeWidth={1.6} fill="none" />
         {box(110, 80, 40, 'mixer', GOLD)}
         <line x1={130} y1={102} x2={130} y2={116} stroke={INK} />
         {box(80, 116, 100, 'I and Q')}
+      </svg>
+      <svg viewBox="0 0 230 120" width="220" height="115" aria-hidden>
+        <line x1={20} y1={100} x2={210} y2={100} stroke={DIM} />
+        <line x1={40} y1={115} x2={40} y2={8} stroke={DIM} />
+        <text x={200} y={114} className="d-ref">I</text>
+        <text x={46} y={14} className="d-ref">Q</text>
+        <line x1={40} y1={100} x2={140} y2={34} stroke={GOLD} strokeWidth={2} />
+        <circle cx={140} cy={34} r={4} fill={GOLD} />
+        <line x1={140} y1={34} x2={140} y2={100} stroke={GOLD} strokeDasharray="3 3" strokeOpacity={0.6} />
+        <line x1={140} y1={34} x2={40} y2={34} stroke={GOLD} strokeDasharray="3 3" strokeOpacity={0.6} />
+        <text x={132} y={114} className="d-ref" fill={GOLD}>I</text>
+        <text x={26} y={38} className="d-ref" fill={GOLD}>Q</text>
+        <path d="M70,100 A30,30 0 0 0 65,84" stroke={INK} fill="none" />
+        <text x={74} y={92} className="d-ref" fill={INK}>phase</text>
+        <text x={146} y={30} className="d-ref" fill={INK}>(I, Q)</text>
       </svg>
     </Box>
   )

@@ -55,8 +55,14 @@ const v3 = (p: V[]) => new THREE.CatmullRomCurve3(p.map((q) => new THREE.Vector3
 const STEEL = { color: '#7d8086', metalness: 0.6, roughness: 0.5 }
 const PANEL = { color: '#1f2124', metalness: 0.4, roughness: 0.55 }
 
-function Cable({ pts, r = 30, color = '#5f7490' }: { pts: V[]; r?: number; color?: string }) {
+function Cable({ pts, r = 30, color = '#5f7490', see }: { pts: V[]; r?: number; color?: string; see?: boolean }) {
   const c = useMemo(() => v3(pts), [pts])
+  if (see) return (
+    <group>
+      <mesh><tubeGeometry args={[c, 240, r, 16, false]} /><meshStandardMaterial color="#9fb0c4" roughness={0.4} metalness={0.3} transparent opacity={0.25} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+      <mesh><tubeGeometry args={[c, 240, 3, 8, false]} /><meshStandardMaterial color="#d9c08a" metalness={1} roughness={0.3} /></mesh>
+    </group>
+  )
   return <mesh><tubeGeometry args={[c, 240, r, 12, false]} /><meshStandardMaterial color={color} roughness={0.55} metalness={0.1} /></mesh>
 }
 
@@ -149,9 +155,11 @@ const G = (() => {
   return Array.from({ length: NPTS + 1 }, () => { const m = Math.sqrt(-2 * Math.log(Math.max(1e-9, r()))), a = 2 * Math.PI * r(); return [m * Math.cos(a), m * Math.sin(a)] })
 })()
 
-function drawPlot(ctx: CanvasRenderingContext2D, n: number, single: boolean, qubit: 0 | 1, withAmp: boolean, ping: number) {
+function drawPlot(ctx: CanvasRenderingContext2D, n: number, single: boolean, qubit: 0 | 1, withAmp: boolean, ping: number, logo: HTMLImageElement | null) {
   const W = 1600, H = 900
   ctx.fillStyle = '#0b0e13'; ctx.fillRect(0, 0, W, H)
+  // the lab's logo, top right, if public/logo.png exists
+  if (logo) { const h = 110, w = (logo.width / logo.height) * h; ctx.drawImage(logo, W - 50 - w, 28, w, h) }
   ctx.fillStyle = '#dfe5ea'; ctx.font = '500 34px "IBM Plex Sans", sans-serif'
   ctx.fillText('Qubit 3 readout', 60, 64)
   ctx.fillStyle = '#8d93a0'; ctx.font = '24px "IBM Plex Sans", sans-serif'
@@ -233,12 +241,19 @@ export function StationScreen() {
   const canvas = useMemo(() => { const c = document.createElement('canvas'); c.width = 1600; c.height = 900; return c }, [])
   const tex = useMemo(() => { const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t }, [canvas])
   const last = useRef('')
+  // optional logo: drop an image at public/logo.png and it appears on the monitor
+  const logo = useRef<HTMLImageElement | null>(null)
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => { logo.current = img; last.current = '' }
+    img.src = '/logo.png'
+  }, [])
   useEffect(() => () => tex.dispose(), [tex])
 
   const spec = useMemo<TrailSpec>(() => ({
     center: () => (here() && stationU() < 0.25 ? (stationU() / 0.25) * len : -999),
-    width: 260, pitch: 220, lift: () => 0,
-    radius: () => Math.min(110, Math.max(20, vis.current * 0.9)),
+    width: 260, pitch: 60, lift: () => 0,
+    radius: () => 22, // inside the cable (radius 30)
     twist: () => READOUT_PHASE[usePath.getState().qubit],
   }), [len])
 
@@ -263,7 +278,7 @@ export function StationScreen() {
     if (key !== last.current) {
       last.current = key
       const ctx = canvas.getContext('2d')
-      if (ctx) { drawPlot(ctx, n, single, st.qubit, st.withAmp, ping); tex.needsUpdate = true }
+      if (ctx) { drawPlot(ctx, n, single, st.qubit, st.withAmp, ping, logo.current); tex.needsUpdate = true }
     }
 
     let target: Shot
@@ -284,7 +299,7 @@ export function StationScreen() {
   return (
     <group>
       <Lab />
-      <Cable pts={ROUTE.slice(1)} />
+      <Cable pts={ROUTE.slice(1)} see />
       <mesh position={[MON.x, MON.y, MON.z]}><planeGeometry args={[MON.w, MON.h]} /><meshBasicMaterial map={tex} toneMapped={false} /></mesh>
       <PulseTrail curve={route} spec={spec} />
       {beat === 0 && <>

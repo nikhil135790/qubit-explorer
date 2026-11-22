@@ -68,7 +68,7 @@ export function PulseTrail({ curve, spec, color = '#ffcf6e', width = 1.8 }: { cu
       if (v.b.lengthSq() < 1e-6) v.b.set(0, 0, 1)
       v.b.normalize()
       v.n.crossVectors(v.b, v.t).normalize()
-      const lf = spec.lift ? spec.lift(a) : spec.radius(a) * 1.05
+      const lf = spec.lift ? spec.lift(a) : spec.radius(a) * 2.4
       v.p.addScaledVector(v.n, lf)
       const env = Math.exp(-(((a - c) / spec.width) ** 2))
       const r = spec.radius(a) * env

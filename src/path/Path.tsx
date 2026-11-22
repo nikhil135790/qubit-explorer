@@ -155,14 +155,14 @@ export function Path() {
         <h1>{S.beats.slice(0, beat + 1).reduce<string | undefined>((t, b) => b.title ?? t, undefined) ?? S.name}</h1>
       </div>
       <p className="p-caption" key={'cap-' + station + '-' + beat}><Tex>{B.caption}</Tex></p>
-      <p className="p-hint">{paused ? 'Paused. Drag to look around, scroll to zoom.' : running ? '' : 'Drag to look around. Press Next when you’re ready.'}</p>
+      <p className="p-hint">{paused ? 'Paused. Drag to look around, scroll to zoom.' : running || atEnd ? '' : 'Drag to look around. Press Next when you’re ready.'}</p>
 
       <Aside key={'aside-' + station + '-' + beat} station={station} beat={beat} />
 
       <footer className="p-bar">
         <div className="p-steps">
           <button onClick={back} disabled={station === 0 && beat === 0}>Back</button>
-          <button className="p-next" onClick={atEnd ? () => goStation(0) : next}>{atEnd ? 'Start over' : 'Next'}</button>
+          <button className="p-next" onClick={next} disabled={atEnd}>Next</button>
           <button onClick={() => { if (paused && usePath.getState().orbiting) rig.catchup = 1.2; set(paused ? { paused: false, orbiting: false } : { paused: true }) }}>{paused ? 'Resume' : 'Pause'}</button>
           <button onClick={replay}>Replay step</button>
         </div>

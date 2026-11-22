@@ -114,7 +114,7 @@ export function StationQubit() {
     width: 5,
     pitch: 4,
     radius: rad,
-    lift: (a) => rad(a) * 1.05 * (1 - inConn(a)),
+    lift: (a) => rad(a) * 2.4 * (1 - inConn(a)),
     twist: (a) => (a > RES_ARC ? READOUT_PHASE[usePath.getState().qubit] : 0),
   }), [len, inConn])
   const ghost = useMemo<TrailSpec>(() => ({

@@ -189,7 +189,7 @@ export function StationAmp() {
     }
     const fwdR = (a: number) => vis.current * 0.9 * READOUT_AMP * (a < L.ringIn ? 1 : a < L.resB ? 1 + 2.5 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 3.5)
     const fwdSpec: TrailSpec = {
-      lift: (a) => fwdR(a) * 1.05 * (1 - inConn(a)),
+      lift: (a) => fwdR(a) * 2.4 * (1 - inConn(a)),
       center: () => fwdArc(ampU(stationU())), width: 4, pitch: 3.2,
       // 20 dB of power gain is 10x in amplitude; drawn as ~3.5x so it stays on screen
       radius: (a) => { const k = inConn(a), r = fwdR(a); return (r * (1 - k) + Math.min(r, 6) * k) * fade(ampU(stationU())) },

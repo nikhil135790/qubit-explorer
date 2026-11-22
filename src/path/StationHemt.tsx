@@ -151,14 +151,14 @@ export function StationHemt() {
     const grow = (a: number) => 0.45 + L.stage.reduce((g, s) => g + 0.3 * THREE.MathUtils.smoothstep(a, s - 8, s + 8), 0)
     const inBox = (a: number) => (a > L.boxIn && a < L.boxOut ? 1 : 0)
     const fwdSpec: TrailSpec = {
-      center: () => fwdArc(stationU()), width: 30, pitch: 26,
-      radius: (a) => Math.min(70, vis.current * grow(a)),
-      lift: (a) => inBox(a) * Math.min(70, vis.current * grow(a)) * 0.9,
+      center: () => fwdArc(stationU()), width: 30, pitch: 14,
+      radius: (a) => (inBox(a) ? Math.min(70, vis.current * grow(a)) : 7),
+      lift: (a) => inBox(a) * Math.min(70, vis.current * grow(a)) * 2.4,
       twist: () => READOUT_PHASE[usePath.getState().qubit],
     }
     const noiseSpec: TrailSpec = {
-      center: () => noiseArc(stationU()), width: 26, pitch: 22, lift: (a) => (a < L.nOut ? Math.min(40, vis.current * 0.55) * 0.9 : 0),
-      radius: () => Math.min(40, vis.current * 0.55), twist: () => 0, fuzz: () => 0.9,
+      center: () => noiseArc(stationU()), width: 26, pitch: 22, lift: (a) => (a < L.nOut ? Math.min(40, vis.current * 0.55) * 2.4 : 0),
+      radius: (a) => (a < L.nOut ? Math.min(40, vis.current * 0.55) : 7), twist: () => 0, fuzz: () => 0.9,
     }
     return { fwdSpec, noiseSpec }
   }, [L])
