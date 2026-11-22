@@ -152,8 +152,8 @@ export function StationHemt() {
     const inBox = (a: number) => (a > L.boxIn && a < L.boxOut ? 1 : 0)
     const fwdSpec: TrailSpec = {
       center: () => fwdArc(stationU()), width: 30, pitch: 14,
-      radius: (a) => (inBox(a) ? Math.min(70, vis.current * grow(a)) : 7),
-      lift: (a) => inBox(a) * Math.min(70, vis.current * grow(a)) * 0.9,
+      radius: (a) => (inBox(a) ? Math.min(12, vis.current) * grow(a) : 7),
+      lift: (a) => inBox(a) * Math.min(12, vis.current) * grow(a) * 0.9,
       twist: () => READOUT_PHASE[usePath.getState().qubit],
     }
     const noiseSpec: TrailSpec = {

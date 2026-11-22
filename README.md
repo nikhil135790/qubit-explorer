@@ -1,4 +1,4 @@
-# Down the Readout Line
+# QH Interactive
 
 An interactive, to-scale 3D journey through a superconducting quantum computer, from a 1.5 m dilution refrigerator down to a 200 nm Josephson junction, built around the device that reads qubits out: the **Josephson directional amplifier**.
 

@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { ProcessorChip, QZ, MAIN_X, PURCELL_X } from './ProcessorChip'
+import { ProcessorChip, QZ, MAIN_X } from './ProcessorChip'
 import { READOUT_PHASE, READOUT_AMP } from '../journey/state'
 import { Label } from '../scene/common'
 import { PulseTrail } from './PulseTrail'
@@ -122,7 +122,7 @@ export function StationQubit() {
     const a0 = at(175), a1 = at(185) // only inside the connector shell (it starts at x = 173)
     return (a: number) => Math.max(0, Math.min(1, (a - a0) / (a1 - a0)))
   }, [curve, len])
-  const rad = (a: number) => { const r = vis.current * 1.1 * (a > RES_ARC ? READOUT_AMP : 1); const k = inConn(a); return r * (1 - k) + Math.min(r, 5) * k }
+  const rad = (a: number) => { const r = Math.min(2.2, vis.current * 1.1) * (a > RES_ARC ? READOUT_AMP : 1); const k = inConn(a); return r * (1 - k) + Math.min(r, 5) * k }
   const spec = useMemo<TrailSpec>(() => ({
     center: () => arcAt(usePath.getState().u),
     width: 5,
@@ -164,7 +164,7 @@ export function StationQubit() {
       const s = 1 + Math.max(0, a - 84) / 22 // start widening once the pulse reaches the chip edge
       const chase: Shot = { pos: tmp.p.clone().add(CHASE.clone().multiplyScalar(s)), look: tmp.p.clone() }
       zoomShot(K.junction, K.chip, seg(v, 0.14, 0.28), tmp.b)
-      target = blendShots(tmp.b, chase, seg(v, 0.38, 0.48), tmp.c)
+      target = blendShots(tmp.b, chase, seg(v, 0.34, 0.46), tmp.c)
     }
     vis.current = Math.max(1, camera.position.distanceTo(rig.look) / 22)
     if (station !== ST.qubit || paused || orbiting) return
@@ -190,10 +190,6 @@ export function StationQubit() {
         <Label open pos={[MAIN_X - 0.0035, J.ySi + 0.0005, QZ + 0.0015]}>Oxide layer, about 2 nm</Label>
       </>}
       {beat === 2 && <Label open pos={[MAIN_X - 5, 0.4, -6]}>Readout resonator</Label>}
-      {beat === 3 && <>
-        <Label open pos={[-PURCELL_X, 0.4, 0]}>Purcell filter capacitor</Label>
-        <Label open pos={[PURCELL_X, 0.4, 0]}>Purcell filter capacitor</Label>
-      </>}
       </>}
     </group>
   )

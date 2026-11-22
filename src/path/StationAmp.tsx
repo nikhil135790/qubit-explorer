@@ -187,23 +187,24 @@ export function StationAmp() {
       const k1 = Math.max(0, Math.min(1, (L.connIn - a) / 8)), k2 = Math.max(0, Math.min(1, (a - L.connOut) / 8))
       return Math.max(k1, k2)
     }
-    const fwdR = (a: number) => vis.current * 0.9 * READOUT_AMP * (a < L.ringIn ? 1 : a < L.resB ? 1 + 2.5 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 3.5)
+    // sized to the chip (never more than a couple of trace widths), and drawn about twice as big once amplified
+    const fwdR = (a: number) => Math.min(1.1, vis.current * 0.9 * READOUT_AMP) * (a < L.ringIn ? 1 : a < L.resB ? 1 + 0.7 * ((a - L.ringIn) / (L.resB - L.ringIn)) : 1.7)
     const fwdSpec: TrailSpec = {
       lift: (a) => fwdR(a) * 1.05 * (1 - inConn(a)),
       center: () => fwdArc(ampU(stationU())), width: 4, pitch: 3.2,
-      // 20 dB of power gain is 10x in amplitude; drawn as ~3.5x so it stays on screen
+      // 20 dB of power gain is 10x in amplitude; drawn only ~1.7x so it stays in proportion with the chip
       radius: (a) => { const k = inConn(a), r = fwdR(a); return (r * (1 - k) + Math.min(r, 6) * k) * fade(ampU(stationU())) },
       twist,
     }
-    const detSpec: TrailSpec = { center: () => detArc(ampU(stationU())), width: 3, pitch: 3.2, radius: () => vis.current * 0.9, twist }
+    const detSpec: TrailSpec = { center: () => detArc(ampU(stationU())), width: 3, pitch: 3.2, radius: () => Math.min(1.1, vis.current * 0.9), twist }
     const ninSpec: TrailSpec = {
       center: () => ninArc(ampU(stationU())), width: 5, pitch: 2.6,
-      radius: (a) => vis.current * 1.1 * (a < L.ringNoise ? 1 : Math.exp(-(a - L.ringNoise) / 1.2)), // cancels past the ring
+      radius: (a) => Math.min(1.3, vis.current * 1.1) * (a < L.ringNoise ? 1 : Math.exp(-(a - L.ringNoise) / 1.2)), // cancels past the ring
       twist: () => 0, fuzz: () => 0.9,
     }
     const ndrSpec: TrailSpec = {
       center: () => ndrArc(ampU(stationU())), width: 4, pitch: 2.6,
-      radius: (a) => vis.current * 1.1 * Math.exp(-Math.max(0, a - 14) / 2.5), // absorbed in the resistor
+      radius: (a) => Math.min(1.3, vis.current * 1.1) * Math.exp(-Math.max(0, a - 14) / 2.5), // absorbed in the resistor
       twist: () => 0, fuzz: () => 0.9,
     }
     return { fwdSpec, detSpec, ninSpec, ndrSpec }

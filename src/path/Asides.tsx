@@ -59,7 +59,7 @@ function Dial({ k = 1, sig = 0, size = 200, tq = 0, legend = true }: { k?: numbe
 
 function TwistBox() {
   // the arrow swings while the pulse passes the resonator
-  const k = usePath((s) => seg(s.u, STATIONS[ST.qubit].beats[4].u, STATIONS[ST.qubit].beats[5].u - 0.04))
+  const k = usePath((s) => seg(s.u, STATIONS[ST.qubit].beats[3].u, STATIONS[ST.qubit].beats[4].u - 0.04))
   return (
     <Box title="Reading the phase" note="We compare the returning pulse with a reference wave split off from the one we sent in. A phase $45^\circ$ ahead of the reference means the qubit is 1, and $45^\circ$ behind means it is 0.">
       <Dial k={k} />
@@ -337,7 +337,7 @@ function WithWithout() {
 }
 
 const ASIDES: Record<string, () => ReactNode> = {
-  [`${ST.qubit}-5`]: () => <TwistBox />,
+  [`${ST.qubit}-4`]: () => <TwistBox />,
   [`${ST.amp}-1`]: () => <WhyAmplify />,
   [`${ST.amp}-3`]: () => <TwoRoutes />,
   [`${ST.amp}-4`]: () => <AddBox />,

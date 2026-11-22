@@ -32,24 +32,37 @@ const RACK = { x0: 22000, x1: 28000, z0: -2000, z1: 6000, top: 12500 }
 export const FRONT = RACK.z1
 export const GEN_Y = 10445
 const MIX_Y = 9222, DIG_Y = 8145
+// every cable plugs into a labelled jack at both ends:
+// generator RF out -> splitter on top of the rack -> (1) the fridge's input line, (2) the mixer's LO (reference) input;
+// fridge output -> mixer RF in; mixer I and Q outs -> digitizer channels; digitizer data -> FPGA -> monitor
+// on a 2U panel the jacks sit on the lower row, 183 units below the panel's centre
+const JACK_DROP = 183
+const GEN_OUT: V = [26600, GEN_Y - JACK_DROP, FRONT + 60]
+const SPLIT = { x: 26800, y: RACK.top + 160, z: 3600 } // power splitter sitting on the rack's roof
 const RF_IN: V = [23500, MIX_Y, FRONT + 60]
-const LO_IN: V = [24300, MIX_Y, FRONT + 60]
+const LO_IN: V = [26000, MIX_Y, FRONT + 60]
+const I_OUT: V = [24400, MIX_Y, FRONT + 60], Q_OUT: V = [24900, MIX_Y, FRONT + 60]
+const CH1: V = [24400, DIG_Y - JACK_DROP, FRONT + 60], CH2: V = [24900, DIG_Y - JACK_DROP, FRONT + 60]
+const DATA_OUT: V = [27200, DIG_Y - JACK_DROP, FRONT + 60]
 // desk and monitor
 const MON = { x: 14200, y: 3700, z: 1777, w: 5800, h: 3200 }
 
-// the pulse's route: up out of the 4 K box's line, through the top flange, along a flexible cable to the mixer
+// the pulse's route: up out of the 4 K box's line, through the top flange, along a flexible cable, down the rack's left edge to the mixer
 const ROUTE: V[] = [
   [1972, 11000, 226], [1972, TOP, 226], [1972, 13100, 226], [3200, 13900, 600], [8000, 14200, 1800],
-  [16000, 14000, 4200], [22300, 13300, 6200], [23400, 11600, 6420], [23500, 9800, 6330], [23500, 9420, 6200], RF_IN,
+  [16000, 14000, 4200], [21800, 13400, 6300], [22350, 12200, 6400], [22350, 10000, 6400], [22500, MIX_Y + 250, 6350], [23300, MIX_Y + 40, FRONT + 300], RF_IN,
 ]
-// the generator's tone, split: one cable to the fridge input on the top flange, one short loop to the mixer
-export const TO_FRIDGE: V[] = [[23000, GEN_Y, FRONT + 60], [23000, GEN_Y, FRONT + 500], [22600, 12600, 6000], [14000, 14600, 2400], [2000, 14400, -200], [-282, 13200, 0], [-282, TOP, 0]]
-const TO_LO: V[] = [[23250, GEN_Y - 120, FRONT + 60], [23300, GEN_Y - 200, FRONT + 500], [24100, MIX_Y + 300, FRONT + 480], LO_IN]
+// generator to splitter (up the rack's right edge), splitter to the fridge's input on the top flange
+const GEN_TO_SPLIT: V[] = [GEN_OUT, [26600, GEN_Y - JACK_DROP, FRONT + 400], [27500, GEN_Y + 300, FRONT + 500], [27600, RACK.top + 400, 4600], [27300, SPLIT.y, SPLIT.z], [27100, SPLIT.y, SPLIT.z]]
+const SPLIT_TO_FRIDGE: V[] = [[26500, SPLIT.y, SPLIT.z - 120], [26100, SPLIT.y + 200, SPLIT.z - 300], [24000, 14200, 2600], [14000, 14600, 2400], [2000, 14400, -200], [-282, 13200, 0], [-282, TOP, 0]]
+/** The pulse's whole route at room temperature: out of the generator, through the splitter, to the fridge. */
+export const TO_FRIDGE: V[] = [...GEN_TO_SPLIT, ...SPLIT_TO_FRIDGE]
+const SPLIT_TO_LO: V[] = [[26500, SPLIT.y, SPLIT.z + 120], [26200, SPLIT.y + 150, SPLIT.z + 900], [27700, RACK.top - 300, FRONT + 500], [27700, MIX_Y + 600, FRONT + 500], [26200, MIX_Y + 100, FRONT + 360], LO_IN]
 const IQ_OUT: V[][] = [
-  [[25500, MIX_Y, FRONT + 60], [25550, MIX_Y - 300, FRONT + 420], [25450, DIG_Y + 300, FRONT + 420], [25300, DIG_Y, FRONT + 60]],
-  [[26000, MIX_Y, FRONT + 60], [26050, MIX_Y - 300, FRONT + 520], [25950, DIG_Y + 300, FRONT + 520], [25800, DIG_Y, FRONT + 60]],
+  [I_OUT, [24400, MIX_Y - 150, FRONT + 360], [24400, DIG_Y + 150, FRONT + 360], CH1],
+  [Q_OUT, [24900, MIX_Y - 150, FRONT + 440], [24900, DIG_Y + 150, FRONT + 440], CH2],
 ]
-const TO_MONITOR: V[] = [[27300, 5420, FRONT - 400], [27500, 5000, FRONT + 300], [27400, 4800, FRONT + 700], [24000, 300, 3400], [18000, 60, 1200], [MON.x + 600, 60, 1000]]
+const TO_MONITOR: V[] = [[25500, 5480, FRONT - 200], [25600, 5300, FRONT + 300], [25200, 4800, FRONT + 700], [24000, 300, 3400], [18000, 60, 1200], [MON.x + 600, 60, 1000]]
 
 const v3 = (p: V[]) => new THREE.CatmullRomCurve3(p.map((q) => new THREE.Vector3(...q)), false, 'centripetal')
 
@@ -75,24 +88,74 @@ function SmaJack({ at }: { at: V }) {
   )
 }
 
-/** One rack instrument: a front panel with a bezel, an optional display, knobs and jacks. */
-function Instrument({ y, u, display, knobs = 0, jacks = [] as number[], leds = 0 }: { y: number; u: number; display?: [number, number]; knobs?: number; jacks?: number[]; leds?: number }) {
+type Face = (g: CanvasRenderingContext2D, W: number, H: number, toX: (x: number) => number) => void
+
+/** One rack instrument: a box, a front panel with its face printed on it, optional knob and jacks. */
+function Instrument({ y, u, knobs = 0, jacks = [] as number[], leds = 0, face, knobAt }: { y: number; u: number; knobs?: number; jacks?: number[]; leds?: number; face?: Face; knobAt?: [number, number] }) {
   const h = u * 445 - 20, cx = (RACK.x0 + RACK.x1) / 2, w = RACK.x1 - RACK.x0 - 400
+  const tex = useMemo(() => {
+    if (!face) return null
+    const W = 2048, H = Math.round((W * h) / w)
+    const c = document.createElement('canvas'); c.width = W; c.height = H
+    const g = c.getContext('2d')!
+    g.fillStyle = '#2b2e33'; g.fillRect(0, 0, W, H)
+    face(g, W, H, (x) => ((x - (cx - w / 2)) / w) * W)
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
+    return t
+  }, [face, h, w, cx])
   return (
     <group>
       <mesh position={[cx, y, FRONT - 3000]}><boxGeometry args={[w - 200, h, 6000]} /><meshStandardMaterial {...PANEL} /></mesh>
       <mesh position={[cx, y, FRONT]}><boxGeometry args={[w, h, 60]} /><meshStandardMaterial color="#2a2c30" metalness={0.5} roughness={0.5} /></mesh>
-      {display && <mesh position={[display[0], y + 40, FRONT + 32]}><planeGeometry args={[display[1], h * 0.55]} /><meshBasicMaterial color="#173a52" /></mesh>}
-      {display && <mesh position={[display[0] - display[1] * 0.22, y + 60, FRONT + 33]}><planeGeometry args={[display[1] * 0.4, h * 0.12]} /><meshBasicMaterial color="#7fd0ff" /></mesh>}
+      {tex && <mesh position={[cx, y, FRONT + 31]}><planeGeometry args={[w, h]} /><meshStandardMaterial map={tex} roughness={0.6} metalness={0.1} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.18} /></mesh>}
+      {knobAt && <mesh position={[knobAt[0], knobAt[1], FRONT + 100]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[190, 200, 140, 32]} /><meshStandardMaterial color="#1b1c1f" metalness={0.3} roughness={0.45} /></mesh>}
       {Array.from({ length: knobs }, (_, i) => (
         <mesh key={i} position={[cx + 400 + i * 520, y, FRONT + 90]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[150, 150, 120, 24]} /><meshStandardMaterial color="#1b1c1f" roughness={0.6} /></mesh>
       ))}
       {Array.from({ length: leds }, (_, i) => (
         <mesh key={i} position={[RACK.x0 + 600 + i * 160, y + h * 0.3, FRONT + 32]}><circleGeometry args={[30, 12]} /><meshBasicMaterial color={i % 3 === 0 ? '#7cff9a' : '#ffb35c'} /></mesh>
       ))}
-      {jacks.map((x) => <SmaJack key={x} at={[x, y, FRONT + 60]} />)}
+      {jacks.map((x) => <SmaJack key={x} at={[x, y - (face && u === 2 ? JACK_DROP : 0), FRONT + 60]} />)}
     </group>
   )
+}
+
+const label = (g: CanvasRenderingContext2D, t: string, x: number, y: number, size = 26, color = '#c9ccd3', align: CanvasTextAlign = 'center') => {
+  g.fillStyle = color; g.font = `500 ${size}px "IBM Plex Sans", sans-serif`; g.textAlign = align; g.fillText(t, x, y)
+}
+const jackRing = (g: CanvasRenderingContext2D, x: number, y: number) => { g.strokeStyle = '#8d93a0'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 34, 0, Math.PI * 2); g.stroke() }
+
+/** A microwave signal generator: display with frequency and power, soft keys, keypad, knob, RF output. */
+const genFace: Face = (g, _W, H, toX) => {
+  label(g, 'Microwave signal generator, 100 kHz to 20 GHz', 40, 46, 26, '#9aa0aa', 'left')
+  g.fillStyle = '#0d2533'; g.fillRect(40, 70, 760, H - 110)
+  label(g, '7.245 000 000 GHz', 70, 165, 64, '#8fe3ff', 'left')
+  label(g, '-20.00 dBm', 70, 235, 44, '#8fe3ff', 'left')
+  g.fillStyle = '#2f7a4a'; g.fillRect(560, 205, 200, 44); label(g, 'RF ON', 660, 238, 28, '#d8ffe6')
+  for (let i = 0; i < 5; i++) { g.fillStyle = '#3b3f46'; g.fillRect(830, 74 + i * 46, 120, 36) }
+  // keypad
+  const keys = ['7', '8', '9', 'GHz', '4', '5', '6', 'MHz', '1', '2', '3', 'kHz', '0', '.', '-', 'Enter']
+  keys.forEach((k, i) => { const x = 1010 + (i % 4) * 84, y = 70 + Math.floor(i / 4) * 58; g.fillStyle = '#41454d'; g.fillRect(x, y, 74, 48); label(g, k, x + 37, y + 33, k.length > 2 ? 18 : 26, '#dfe2e7') })
+  label(g, 'FREQ', 1420, 100, 22); label(g, 'AMPL', 1420, 160, 22); label(g, 'RF ON/OFF', 1420, 220, 22)
+  const jx = toX(GEN_OUT[0]); jackRing(g, jx, H - 92); label(g, 'RF OUTPUT', jx, H - 150, 24)
+  g.fillStyle = '#7cff9a'; g.beginPath(); g.arc(jx + 120, H - 92, 10, 0, Math.PI * 2); g.fill()
+}
+/** An IQ mixer: RF in, LO (reference) in, I and Q out. */
+const mixFace: Face = (g, _W, H, toX) => {
+  label(g, 'IQ mixer', 40, H / 2 + 10, 30, '#9aa0aa', 'left')
+  for (const [x, t] of [[RF_IN[0], 'RF in'], [I_OUT[0], 'I out'], [Q_OUT[0], 'Q out'], [LO_IN[0], 'LO in (reference)']] as const) {
+    const cx = toX(x); jackRing(g, cx, H / 2); label(g, t, cx + 46, H / 2 + 9, 22, '#c9ccd3', 'left')
+  }
+}
+/** A two-channel digitizer: inputs, a small trace display, data out to the FPGA. */
+const digFace: Face = (g, _W, H, toX) => {
+  label(g, 'Digitizer, 2 channels, 1 billion samples per second', 40, 46, 26, '#9aa0aa', 'left')
+  for (const [x, t] of [[CH1[0], 'CH1  I'], [CH2[0], 'CH2  Q']] as const) { const cx = toX(x); jackRing(g, cx, H - 92); label(g, t, cx, H - 150, 22) }
+  g.fillStyle = '#0d2533'; g.fillRect(1120, 70, 520, H - 110)
+  g.strokeStyle = '#8fe3ff'; g.lineWidth = 3; g.beginPath()
+  for (let i = 0; i <= 200; i++) { const x = 1130 + i * 2.5, env = Math.sin((i / 200) * Math.PI); const yy = H / 2 + 10 - env * 60 * Math.sin(i * 0.5); i ? g.lineTo(x, yy) : g.moveTo(x, yy) }
+  g.stroke()
+  const dx = toX(DATA_OUT[0]); jackRing(g, dx, H - 92); label(g, 'DATA', dx, H - 150, 22)
 }
 
 const FPGA = { x: 24300, y: 5400, z: FRONT - 1400 }
@@ -142,9 +205,9 @@ function Lab() {
       ))}
       <mesh position={[rackCx, RACK.top - 100, rackCz]}><boxGeometry args={[RACK.x1 - RACK.x0, 200, RACK.z1 - RACK.z0]} /><meshStandardMaterial color="#141517" roughness={0.6} /></mesh>
       {[RACK.x0 + 40, RACK.x1 - 40].map((x) => <mesh key={x} position={[x, (FLOOR + RACK.top) / 2, rackCz]}><boxGeometry args={[80, RACK.top - FLOOR, RACK.z1 - RACK.z0]} /><meshStandardMaterial color="#1b1c1f" roughness={0.7} /></mesh>)}
-      <Instrument y={GEN_Y} u={2} display={[25600, 2600]} knobs={0} jacks={[23000]} leds={2} />
-      <Instrument y={MIX_Y} u={1} jacks={[23500, 24300, 25500, 26000]} leds={1} />
-      <Instrument y={DIG_Y} u={2} display={[26600, 1400]} jacks={[25300, 25800]} leds={4} />
+      <Instrument y={GEN_Y} u={2} jacks={[GEN_OUT[0]]} face={genFace} knobAt={[25350, GEN_Y - 60]} />
+      <Instrument y={MIX_Y} u={1} jacks={[RF_IN[0], I_OUT[0], Q_OUT[0], LO_IN[0]]} face={mixFace} />
+      <Instrument y={DIG_Y} u={2} jacks={[CH1[0], CH2[0], DATA_OUT[0]]} face={digFace} />
       {/* FPGA board on an open shelf: a green circuit board with the FPGA chip under a finned heatsink */}
       <FpgaBoard />
       <Instrument y={3600} u={4} knobs={3} leds={2} />
@@ -159,15 +222,17 @@ function Lab() {
       {/* keyboard */}
       <mesh position={[MON.x - 200, 60, 4200]}><boxGeometry args={[4400, 120, 1400]} /><meshStandardMaterial color="#1e1f22" roughness={0.6} /></mesh>
 
-      {/* cables */}
-      <Cable pts={TO_FRIDGE} see />
-      {/* splitter on the generator's output: half goes to the fridge, half stays as the reference */}
-      <mesh position={[23120, GEN_Y - 60, FRONT + 260]}><boxGeometry args={[420, 260, 260]} /><meshStandardMaterial {...GOLD} /></mesh>
-      <Cable pts={TO_LO} r={26} />
+      {/* cables, each from one jack to another */}
+      <Cable pts={GEN_TO_SPLIT} see />
+      <Cable pts={SPLIT_TO_FRIDGE} see />
+      <group position={[SPLIT.x, SPLIT.y, SPLIT.z]}>
+        <mesh><boxGeometry args={[600, 160, 420]} /><meshStandardMaterial {...GOLD} /></mesh>
+        {[[310, 0], [-310, -120], [-310, 120]].map(([dx, dz], i) => <mesh key={i} position={[dx, 0, dz]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[34, 34, 90, 6]} /><meshStandardMaterial {...GOLD} /></mesh>)}
+      </group>
+      <Cable pts={SPLIT_TO_LO} r={26} />
       {IQ_OUT.map((p, i) => <Cable key={i} pts={p} r={26} />)}
+      <Cable pts={[DATA_OUT, [27200, DIG_Y - JACK_DROP, FRONT + 450], [27300, FPGA.y + 700, FRONT + 500], [26400, FPGA.y + 200, FRONT + 300], [FPGA.x + 1500, FPGA.y + 80, FPGA.z + 1250]]} r={34} color="#1a1a1c" />
       <Cable pts={TO_MONITOR} r={40} color="#1a1a1c" />
-      <Cable pts={[[25300, DIG_Y, FRONT + 60], [25350, DIG_Y - 400, FRONT + 500], [24600, FPGA.y + 600, FRONT + 300], [FPGA.x + 200, FPGA.y + 80, FPGA.z + 1250]]} r={26} />
-      <Cable pts={[[25800, DIG_Y, FRONT + 60], [25850, DIG_Y - 400, FRONT + 620], [25300, FPGA.y + 600, FRONT + 360], [FPGA.x + 800, FPGA.y + 80, FPGA.z + 1250]]} r={26} />
     </group>
   )
 }
@@ -334,10 +399,10 @@ export function StationScreen() {
       </>}
       {beat === 2 && <Label open pos={[FPGA.x, FPGA.y + 480, FPGA.z]}>FPGA</Label>}
       {beat === 1 && <>
-        <Label open pos={[22800, GEN_Y + 500, FRONT + 100]}>Microwave generator</Label>
-        <Label open pos={[24300, MIX_Y - 380, FRONT + 100]}>Mixer</Label>
-        <Label open pos={[23400, DIG_Y - 520, FRONT + 100]}>Digitizer</Label>
-        <Label open pos={[23700, GEN_Y - 450, FRONT + 520]}>Reference, split from the generator</Label>
+        <Label open pos={[RF_IN[0], MIX_Y + 330, FRONT + 100]}>Mixer</Label>
+        <Label open pos={[27700, MIX_Y + 900, FRONT + 500]}>Reference from the splitter</Label>
+        <Label open pos={[22350, 11000, 6400]}>Pulse from the fridge</Label>
+        <Label open pos={[CH1[0], DIG_Y - 560, FRONT + 100]}>Digitizer</Label>
       </>}
     </group>
   )

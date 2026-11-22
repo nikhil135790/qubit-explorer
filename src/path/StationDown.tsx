@@ -66,12 +66,11 @@ export function StationDown() {
 
   // made at the generator, along the cable to the fridge, down through the plates, then across onto the chip
   const arcAt = (u: number) => {
-    if (!here() || u < 0.14) return -999
-    if (u < 0.2) return 0
+    if (!here() || u < 0.2) return -999 // it leaves the generator when the trip starts
     if (u < 0.4) return ((u - 0.2) / 0.2) * L.top
     if (u < 0.7) return L.top + ((u - 0.4) / 0.3) * (L.low - L.top)
     if (u < 0.8) return L.low + ((u - 0.7) / 0.1) * (L.chip - L.low)
-    return L.chip
+    return -999 // it waits at the chip while we look at the plate
   }
 
   const spec = useMemo<TrailSpec>(() => {
@@ -80,8 +79,8 @@ export function StationDown() {
       const fade = Math.pow(0.72, L.passed(a)) // each attenuator leaves it fainter
       if (z === 0) return 22 // inside the room-temperature cable (radius 30)
       if (z === 1) return 7 * fade // inside the fridge's coax (radius 10)
-      if (z === 2) return Math.min(5, vis.current * 1.1) // inside the box's connector
-      return vis.current * 1.1 // over the board and onto the chip
+      if (z === 2) return Math.min(2.2, vis.current * 1.1) // inside the box's connector
+      return Math.min(2.2, vis.current * 1.1) // over the board and onto the chip
     }
     return {
       center: () => arcAt(stationU()), width: 900, pitch: 180,
@@ -141,16 +140,13 @@ export function StationDown() {
     vis.current = Math.max(1, camera.position.distanceTo(rig.look) / 22)
     {
       const a = arcAt(u)
-      const show = a > -999 && a < L.low + 40 && L.zone(Math.max(0, a)) <= 1
+      const show = a > -999 && a < L.low + 40 && L.zone(Math.max(0, a)) === 1 // only inside the fridge, where the camera has to stay far back
       if (glow.current && glowMat.current) {
         glow.current.visible = show
         if (show) {
           route.getPointAt(Math.min(1, a / L.len), tmp.p)
-          const t = route.getTangentAt(Math.min(1, a / L.len))
           glow.current.position.copy(tmp.p)
-          glow.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), t)
-          const z = L.zone(a)
-          glow.current.scale.set(z === 0 ? 26 : 9, 700, z === 0 ? 26 : 9)
+          glow.current.scale.setScalar(9)
           glowMat.current.color.setRGB(1, 0.8, 0.45).multiplyScalar(9 * Math.pow(0.72, L.passed(a)))
         }
       }
@@ -171,12 +167,12 @@ export function StationDown() {
           {[-70, 70].map((dy) => <mesh key={dy} position={[0, dy, 0]}><cylinderGeometry args={[30, 30, 20, 6, 1, true]} /><meshStandardMaterial {...GOLD} transparent opacity={0.5} depthWrite={false} side={THREE.DoubleSide} /></mesh>)}
         </group>
       ))}
-      <mesh ref={glow} visible={false}><capsuleGeometry args={[1, 1, 8, 16]} /><meshBasicMaterial ref={glowMat} toneMapped={false} transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
+      <mesh ref={glow} visible={false}><sphereGeometry args={[1, 16, 12]} /><meshBasicMaterial ref={glowMat} toneMapped={false} transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
       <PulseTrail curve={route} spec={long} />
       <PulseTrail curve={route} spec={tight} />
       {beat === 1 && <>
-        <Label open pos={[22600, GEN_Y + 500, FRONT + 100]}>Microwave generator</Label>
-        <Label open pos={[23120, GEN_Y - 260, FRONT + 420]}>Splitter</Label>
+        <Label open pos={[23000, GEN_Y + 500, FRONT + 100]}>Microwave generator</Label>
+        <Label open pos={[26800, 12500 + 400, 3600]}>Splitter</Label>
       </>}
       {beat === 2 && <Label open pos={[-282, TOP + 300, 0]}>Sealed connector on the top flange</Label>}
       {beat === 3 && ATT_Y.slice(3).map((y, i) => <Label key={y} open pos={[-282, y, 0]}>{`Attenuator, ${ATT_DB[i + 3]}`}</Label>)}
