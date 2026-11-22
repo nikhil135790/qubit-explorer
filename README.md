@@ -1,23 +1,30 @@
 # QH Interactive
 
-An interactive, to-scale 3D journey through a superconducting quantum computer, from a 1.5 m dilution refrigerator down to a 200 nm Josephson junction, built around the device that reads qubits out: the **Josephson directional amplifier**.
+A guided, to-scale 3D journey that follows one qubit readout pulse through a superconducting quantum computer: from the microwave generator at room temperature, down a dilution refrigerator, through the qubit chip, the Josephson directional amplifier, an isolator and a HEMT amplifier, and back up to the scientist's screen.
 
-Built for the Qublitz 2026 Quantum Create challenge.
+Built for the QuBlitz 2026 Quantum Create challenge, as a visual introduction for people entering superconducting qubit hardware, where the hardest part is often seeing how parts at wildly different scales (a 200 nm junction, a 9 mm chip, a 1.5 m fridge) fit together and why each one exists.
 
-## What it does
+## Run it
 
-Six zoom levels, each drawn to scale in its own units, with a live scale bar:
+```bash
+npm install
+npm run dev
+```
 
-| Level | Real size | What you can do |
-|---|---|---|
-| Dilution refrigerator | ~1.5 m | Follow a readout pulse down through attenuators and back up through the amplifiers. Watch noise from the 4 K HEMT try to travel back toward the qubit. |
-| Mixing chamber plate | ~10 cm | See the qubit package and the directional amplifier side by side. Add or remove an output isolator and see the effect on the qubit. |
-| **Directional amplifier** | ~5 mm | Change the pump phase and strength. Watch the forward gain, reverse isolation, and added noise update live from a coupled-mode model, and push the amplifier into self-oscillation. |
-| Qubit chip | ~5 mm | Four transmons and their λ/4 readout resonators on a shared feedline. See the dispersive shift of the resonator for qubit states \|0⟩ and \|1⟩. |
-| Transmon | ~500 µm | Capacitor pads and SQUID. Change E_J/E_C and see the energy levels, anharmonicity, and charge sensitivity. |
-| Josephson junction | ~200 nm | Al/AlOx/Al overlap junction with Cooper pairs tunneling through the barrier. |
+Then open http://localhost:5173 in Chrome. Use **Next** and **Back** to step through, **Pause** to freeze everything, drag to look around between steps, and the **|0⟩ / |1⟩** toggle to change the qubit's state.
 
-Every amplifier setting feeds through to a **readout consequence** panel: readout fidelity and qubit T₂, computed from a dispersive readout model plus back-action dephasing.
+## The journey
+
+| Stage | What you see |
+|---|---|
+| The trip down | The dilution refrigerator, the rack where the pulse is generated and split (half kept as the phase reference), and the pulse travelling down the input line through an attenuator at each plate. |
+| The qubit | A zoom from the 10 mK plate onto a tantalum transmon, into its Al/AlOx/Al Josephson junction with Cooper pairs tunnelling, and back out to a 4-qubit chip with frequency-multiplexed readout resonators. The pulse picks up a ±45° phase shift depending on the qubit state. |
+| Directional amplifier | A three-mode Josephson amplifier: the pulse reaches the output by two routes that add in step (20 dB gain), while backward noise from the HEMT takes the same two routes, cancels, and drains into a resistor. |
+| Isolator | A ferrite circulator with one port terminated: the pulse goes 1 → 2, HEMT noise goes 2 → 3 and is absorbed. |
+| HEMT at 4 K | A three-stage transistor amplifier adding ~40 dB, and why it must come after the near-quantum-limited amplifier. |
+| The screen | Mixer, digitizer and FPGA turn the pulse's phase into I and Q; single shots, then thousands of shots build two clouds. A toggle removes the directional amplifier: readout fidelity drops from 99.7% to 86.6% at the same 0.4 µs. |
+
+Side panels on selected steps explain the key ideas with diagrams: reading the phase, why amplify, two-path interference, backward noise, the one-way circulator, inside a transistor, amplifier ordering, and what I and Q are.
 
 ## The physics
 
@@ -41,6 +48,10 @@ References: A. Metelmann & A. A. Clerk, *Nonreciprocal photon transmission and a
 - Assignment fidelity, including T₁ decay during the measurement.
 - Back-action: photons leaking back through imperfect isolation dephase the qubit at Γ_φ = (κ/2) Re[√((1 + 2iχ/κ)² + 8iχ n_th/κ) − 1] (Clerk & Utami 2007; Sears et al. 2012).
 
+## How it was made
+
+Physics models, verification scripts and the 3D scene were built with substantial help from an AI assistant (Claude, by Anthropic). All physics numbers shown in the app come from the models in `src/physics/`, checked against the independent calculations listed below.
+
 ## Verification
 
 Everything the app computes was checked against independent calculations:
@@ -61,19 +72,12 @@ python verification/design_directional_amp.py
 npx tsx verification/check_ts.ts
 ```
 
-## Run the app
-
-```bash
-npm install
-npm run dev
-```
-
-Then open http://localhost:5173.
-
 Built with React, Three.js (React Three Fiber + drei), Zustand, and TypeScript.
 
 ## Simplifications
 
 - The amplifier is a three-mode coupled-mode model. Real devices (Josephson ring modulators, or QAH-based nonreciprocal elements) differ in layout and in second-order effects such as pump depletion and saturation.
 - The readout model ignores measurement-induced state transitions and the resonator transient right after a T₁ decay.
-- Geometry is to scale within each level. The junction's oxide barrier is drawn about 5× thicker than real so it stays visible.
+- Geometry is to scale (1 scene unit = 0.1 mm); the junction's oxide barrier is drawn about 5× thicker than real so it stays visible.
+- The pulse is drawn as a spiral showing the rotating electric field. Its size is chosen for visibility, and amplification is drawn compressed (20 dB is 10× in amplitude, drawn about 1.7×).
+- The mixer is shown as a direct IQ mixer with digital demodulation on the FPGA; real setups often add a room-temperature amplifier and heterodyne detection.
